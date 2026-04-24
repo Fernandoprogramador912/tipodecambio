@@ -172,8 +172,14 @@ async function getSpotRef() {
       const data = await fetchContractData(token, sym);
       const price = data.lastPrice ?? data.bid ?? data.ask;
       if (price) {
-        const result = { symbol: sym, price, fuente: 'Matba-Rofex' };
-        spotRefCache   = result;
+        const result = {
+          symbol: sym,
+          price,
+          bid:    data.bid  ?? null,
+          ask:    data.ask  ?? null,
+          fuente: 'Matba-Rofex',
+        };
+        spotRefCache    = result;
         spotRefCachedAt = now;
         return result;
       }

@@ -603,19 +603,31 @@
     card.classList.remove('skeleton');
 
     // Bloque Rofex spot (si disponible)
-    const rofexBlock = rofex ? `
+    const rofexBlock = rofex ? (() => {
+      const hasBidAsk = rofex.bid != null && rofex.ask != null;
+      const bidAskStr = hasBidAsk
+        ? `<span style="font-size:.62rem;color:var(--muted);margin-left:.75rem;">
+             Bid <b style="color:var(--text)">$${fmt(rofex.bid)}</b>
+             &nbsp;·&nbsp;
+             Ask <b style="color:var(--text)">$${fmt(rofex.ask)}</b>
+           </span>`
+        : '';
+      return `
       <div style="
-        display:flex; align-items:center; justify-content:space-between;
+        display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.3rem;
         background:var(--surface2); border:1px solid var(--border);
         border-radius:6px; padding:.35rem .75rem; margin-bottom:.6rem;
       ">
         <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">
-          Rofex · ${rofex.symbol} (último)
+          Rofex · ${rofex.symbol}
         </span>
-        <span style="font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;">
-          $${fmt(rofex.price)}
+        <span style="display:flex;align-items:center;gap:.25rem;">
+          <span style="font-size:.6rem;color:var(--muted);">Últ</span>
+          <span style="font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;">$${fmt(rofex.price)}</span>
+          ${bidAskStr}
         </span>
-      </div>` : '';
+      </div>`;
+    })() : '';
 
     card.innerHTML = `
       <div class="card-header">
