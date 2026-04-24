@@ -194,6 +194,65 @@
     .skeleton { animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:.8} }
 
+    /* ── Proyección ── */
+    .proj-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .proj-card.alcista  { border-color: rgba(248,81,73,.4); }
+    .proj-card.bajista  { border-color: rgba(63,185,80,.4); }
+    .proj-card.neutro   { border-color: rgba(88,166,255,.3); }
+
+    .proj-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+    .proj-direction { display: flex; align-items: center; gap: .6rem; }
+    .proj-arrow {
+      font-size: 1.6rem; font-weight: 800; line-height: 1;
+    }
+    .proj-arrow.alcista { color: var(--red); }
+    .proj-arrow.bajista { color: var(--green); }
+    .proj-arrow.neutro  { color: var(--blue); }
+
+    .proj-label { font-size: 1.1rem; font-weight: 700; }
+    .proj-score { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
+
+    .proj-range {
+      text-align: right;
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .proj-range strong { color: var(--text); font-size: .9rem; }
+
+    .proj-signals { display: flex; flex-direction: column; gap: .45rem; margin-bottom: 1rem; }
+    .proj-signal {
+      display: flex; align-items: flex-start; gap: .6rem;
+      font-size: .78rem; color: var(--muted); line-height: 1.4;
+    }
+    .proj-signal .sig-icon { font-size: .85rem; min-width: 1.2rem; text-align: center; }
+    .proj-signal.alcista .sig-icon { color: var(--red); }
+    .proj-signal.bajista .sig-icon { color: var(--green); }
+    .proj-signal.neutro  .sig-icon { color: var(--blue); }
+
+    .proj-recommendation {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: .8rem 1rem;
+      font-size: .82rem;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: .75rem;
+    }
+    .proj-recommendation::before { content: '💡 '; }
+
+    .proj-disclaimer {
+      font-size: .65rem;
+      color: var(--muted);
+      opacity: .7;
+    }
+
     @media (max-width: 480px) {
       .usd-values { grid-template-columns: 1fr 1fr; }
       .usd-values .usd-col:last-child { display: none; }
@@ -254,6 +313,14 @@
         <div class="eur-footer">—</div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- PROYECCIÓN DEL DÍA -->
+  <section>
+    <div class="section-title">Proyección intradiaria USD/ARS</div>
+    <div class="proj-card skeleton" id="projCard">
+      <div style="color:var(--muted);font-size:.85rem;">Calculando proyección...</div>
     </div>
   </section>
 
@@ -392,6 +459,44 @@
         <div class="eur-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
       </div>
       <div class="eur-footer">Act: ${fmtDate(r.fechaActualizacion)} · ${r.fuente}</div>`;
+  }
+
+  // ── Render Proyección ──
+  function renderProjection(p) {
+    const card = document.getElementById('projCard');
+    card.classList.remove('skeleton');
+
+    const dir = p.direction;
+    const isAlcista = dir.arrow.includes('▲') || dir.arrow.includes('↗');
+    const isBajista = dir.arrow.includes('▼') || dir.arrow.includes('↘');
+    const colorClass = isAlcista ? 'alcista' : isBajista ? 'bajista' : 'neutro';
+
+    card.className = `proj-card ${colorClass}`;
+
+    const signalsHtml = p.signals.map(s => `
+      <div class="proj-signal ${s.impacto}">
+        <span class="sig-icon">${s.icono}</span>
+        <span>${s.descripcion}</span>
+      </div>`).join('');
+
+    card.innerHTML = `
+      <div class="proj-header">
+        <div class="proj-direction">
+          <div class="proj-arrow ${colorClass}">${dir.arrow}</div>
+          <div>
+            <div class="proj-label">${dir.label}</div>
+            <div class="proj-score">${p.dayName} · Rueda: ${p.session.label}</div>
+          </div>
+        </div>
+        <div class="proj-range">
+          <div>Variación estimada: <strong>${p.variacionEstimada}</strong></div>
+          <div>Rango de cierre: <strong>$${p.rangeMin.toLocaleString('es-AR')} – $${p.rangeMax.toLocaleString('es-AR')}</strong></div>
+          <div>Spot actual: $${fmt(p.spot)}</div>
+        </div>
+      </div>
+      <div class="proj-signals">${signalsHtml}</div>
+      <div class="proj-recommendation">${p.recommendation}</div>
+      <div class="proj-disclaimer">⚠️ ${p.disclaimer}</div>`;
   }
 
   // ── Render Futuros ──
@@ -659,6 +764,15 @@
     }
   }
 
+  // ── Fetch Proyección ──
+  async function fetchProjection() {
+    try {
+      const res  = await fetch('/api/projection');
+      const json = await res.json();
+      if (json.ok) renderProjection(json.data);
+    } catch {}
+  }
+
   // ── Fetch Futuros ──
   async function fetchFutures() {
     try {
@@ -672,25 +786,30 @@
 
   // ── Init & loops ──
   async function init() {
-    await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchHistory()]);
+    await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchHistory(), fetchProjection()]);
   }
 
   function startFXLoop() {
     if (isTradingHours()) {
       startProgressBar(REFRESH_INTERVAL);
     } else {
-      // Fuera de rueda: ocultar la barra de progreso y mostrar estado
       document.getElementById('refreshProgress').style.width = '0%';
       setStatus('ok', 'Mercado cerrado · sin refresco automático');
     }
 
     setInterval(() => {
-      if (!isTradingHours()) return; // no hacer nada fuera del horario
+      if (!isTradingHours()) return;
       fetchFX();
       fetchFutures();
       fetchHistory();
       startProgressBar(REFRESH_INTERVAL);
     }, REFRESH_INTERVAL);
+
+    // Proyección: refrescar cada 2 minutos dentro del horario
+    setInterval(() => {
+      if (!isTradingHours()) return;
+      fetchProjection();
+    }, 2 * 60 * 1000);
   }
 
   init().then(() => {

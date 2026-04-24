@@ -4,8 +4,9 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 
-const { getRates }        = require('./src/services/exchangeService');
-const { getNews }         = require('./src/services/newsService');
+const { getRates }           = require('./src/services/exchangeService');
+const { getNews }            = require('./src/services/newsService');
+const { calculateProjection } = require('./src/services/projectionService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
 const app  = express();
@@ -22,6 +23,20 @@ app.get('/api/fx', async (req, res) => {
     res.json({ ok: true, data: rates, fetchedAt: new Date().toISOString() });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: proyección intradiaria ---
+app.get('/api/projection', async (req, res) => {
+  try {
+    const [rates, futures] = await Promise.all([getRates(), getFutures()]);
+    const spot = rates.usd?.venta;
+    if (!spot) return res.status(503).json({ ok: false, error: 'Sin cotización spot' });
+    const contracts = futures.contracts || [];
+    const projection = calculateProjection(spot, contracts);
+    res.json({ ok: true, data: projection });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
