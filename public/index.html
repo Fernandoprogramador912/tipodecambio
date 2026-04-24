@@ -595,6 +595,11 @@
       const { usd, eur, stale } = json.data;
       if (usd) renderUSD(usd, stale);
       if (eur) renderEUR(eur);
+      // Guardar punto en localStorage y actualizar gráfico
+      if (usd?.venta && isTradingHours()) {
+        lsAddPoint(usd.venta, usd.compra);
+        fetchHistory();
+      }
       fxErrorCount = 0;
       document.getElementById('lastUpdate').textContent =
         'Última actualización: ' + new Date().toLocaleTimeString('es-AR');
@@ -605,14 +610,37 @@
     }
   }
 
-  // ── Fetch Historial ──
-  async function fetchHistory() {
+  // ── Historial en localStorage ──
+  const LS_KEY = () => `tcAR_history_${new Date().toISOString().slice(0, 10)}`;
+
+  function lsLoad() {
     try {
-      const res = await fetch('/api/fx/history');
-      if (!res.ok) return;
-      const json = await res.json();
-      buildChart(json.points || []);
+      const raw = localStorage.getItem(LS_KEY());
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  function lsSave(points) {
+    try {
+      localStorage.setItem(LS_KEY(), JSON.stringify(points));
+      // Limpiar días anteriores
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('tcAR_history_') && key !== LS_KEY()) {
+          localStorage.removeItem(key);
+        }
+      }
     } catch {}
+  }
+
+  function lsAddPoint(venta, compra) {
+    const points = lsLoad();
+    points.push({ ts: new Date().toISOString(), venta, compra });
+    lsSave(points);
+    return points;
+  }
+
+  function fetchHistory() {
+    buildChart(lsLoad());
   }
 
   // ── Fetch Noticias ──

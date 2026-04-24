@@ -1,15 +1,14 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
+const cors    = require('cors');
+const path    = require('path');
 
 const { getRates }        = require('./src/services/exchangeService');
 const { getNews }         = require('./src/services/newsService');
-const { getTodayHistory } = require('./src/services/historyService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -23,16 +22,6 @@ app.get('/api/fx', async (req, res) => {
     res.json({ ok: true, data: rates, fetchedAt: new Date().toISOString() });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });
-  }
-});
-
-// --- API: historial intradiario USD/ARS ---
-app.get('/api/fx/history', (req, res) => {
-  try {
-    const points = getTodayHistory({ onlyTradingHours: false });
-    res.json({ ok: true, points, count: points.length });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -66,8 +55,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n  Dashboard TC + Noticias\n`);
-  console.log(`  Local: http://localhost:${PORT}`);
-  console.log(`  Futuros: ${FUTURES_ENABLED ? 'ACTIVO' : 'desactivado (fase 2)'}\n`);
-});
+// Local: levantar servidor. Vercel: exportar el app como handler.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n  Dashboard TC + Noticias\n`);
+    console.log(`  Local: http://localhost:${PORT}`);
+    console.log(`  Futuros: ${FUTURES_ENABLED ? 'ACTIVO' : 'desactivado (fase 2)'}\n`);
+  });
+}
+
+module.exports = app;
