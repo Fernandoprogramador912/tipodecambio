@@ -685,7 +685,15 @@
     }
 
     sectionTitle.style.opacity = '1';
-    const contracts = data.contracts || [];
+
+    const MONTH_ORDER = { ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,OCT:10,NOV:11,DIC:12 };
+    function contractSortKey(c) {
+      const m = c.symbol?.match(/([A-Z]{3})(\d{2})$/);
+      if (!m) return 99999;
+      return parseInt(m[2], 10) * 100 + (MONTH_ORDER[m[1]] || 99);
+    }
+
+    const contracts = (data.contracts || []).slice().sort((a, b) => contractSortKey(a) - contractSortKey(b));
     const hasData = contracts.some(c => c.lastPrice != null);
     const offlineNotice = !hasData
       ? `<div class="futures-offline">Rueda cerrada — los futuros operan de lunes a viernes de 10:00 a 15:00 hs. Se muestran los últimos precios disponibles.</div>`
