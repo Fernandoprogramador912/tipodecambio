@@ -598,9 +598,25 @@
   }
 
   // ── Render USD (card grande) ──
-  function renderUSD(r, stale) {
+  function renderUSD(r, rofex, stale) {
     const card = document.getElementById('usdCard');
     card.classList.remove('skeleton');
+
+    // Bloque Rofex spot (si disponible)
+    const rofexBlock = rofex ? `
+      <div style="
+        display:flex; align-items:center; justify-content:space-between;
+        background:var(--surface2); border:1px solid var(--border);
+        border-radius:6px; padding:.35rem .75rem; margin-bottom:.6rem;
+      ">
+        <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">
+          Rofex · ${rofex.symbol} (último)
+        </span>
+        <span style="font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;">
+          $${fmt(rofex.price)}
+        </span>
+      </div>` : '';
+
     card.innerHTML = `
       <div class="card-header">
         <div>
@@ -609,16 +625,17 @@
         </div>
         ${stale ? '<span class="stale-badge">Dato desactualizado</span>' : ''}
       </div>
+      ${rofexBlock}
       <div class="usd-values">
         <div class="usd-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
         <div class="usd-col"><span class="lbl">Venta</span><span class="val sell">$${fmt(r.venta)}</span></div>
         <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
       </div>
       <div class="usd-footer">
-        <span>Actualizado: ${fmtDate(r.fechaActualizacion)}</span>
+        <span>Ambito: ${fmtDate(r.fechaActualizacion)}</span>
         <span style="display:flex;gap:.5rem;align-items:center;">
-          ${r.variacion ? `<span style="font-size:.65rem;color:var(--muted);">Var. día: ${r.variacion}</span>` : ''}
-          ${r.valorCierreAnt ? `<span style="font-size:.65rem;color:var(--muted);">Cierre ant: $${fmt(r.valorCierreAnt)}</span>` : ''}
+          ${r.variacion ? `<span style="font-size:.65rem;color:var(--muted);">Var: ${r.variacion}</span>` : ''}
+          ${r.valorCierreAnt ? `<span style="font-size:.65rem;color:var(--muted);">Ant: $${fmt(r.valorCierreAnt)}</span>` : ''}
         </span>
       </div>`;
   }
@@ -882,8 +899,8 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      const { usd, eur, mep, spreadMepMayorista, stale } = json.data;
-      if (usd) renderUSD(usd, stale);
+      const { usd, eur, mep, rofexSpot, spreadMepMayorista, stale } = json.data;
+      if (usd) renderUSD(usd, rofexSpot, stale);
       if (eur) renderEUR(eur);
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
       // Guardar punto en localStorage y actualizar gráfico
