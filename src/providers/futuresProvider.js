@@ -1,4 +1,5 @@
-const axios = require('axios');
+const axios    = require('axios');
+const wsProvider = require('./wsProvider');
 
 const ENABLED = process.env.ENABLE_FUTURES === 'true';
 const BASE_URL = process.env.FUTURES_BASE_URL || 'https://api.remarkets.primary.com.ar';
@@ -144,18 +145,38 @@ async function getFutures() {
   }
 
   const contracts = await fetchAllFutures();
-  futuresCache = contracts;
+
+  // Enriquecer con datos WS si están disponibles (más frescos que REST)
+  const enriched = contracts.map(c => {
+    const ws = wsProvider.getCachedContract(c.symbol);
+    if (!ws) return c;
+    const wsAge = Date.now() - (ws.updatedAt ?? 0);
+    if (wsAge > 60_000) return c; // ignorar si tiene más de 60s
+    return {
+      ...c,
+      lastPrice:    ws.lastPrice ?? c.lastPrice,
+      bid:          ws.bid       ?? c.bid,
+      ask:          ws.ask       ?? c.ask,
+    };
+  });
+
+  futuresCache    = enriched;
   futuresCachedAt = now;
-  return { enabled: true, contracts, cached: false };
+  return { enabled: true, contracts: enriched, cached: false };
 }
 
 /**
- * Devuelve SOLO el precio del contrato DLR más próximo (para la card USD).
- * Mucho más rápido que getFutures() — una sola llamada a la API.
+ * Devuelve el precio del contrato DLR más próximo.
+ * Prioridad: WebSocket cache (tick a tick) → REST (polling cada 8s)
  */
 async function getSpotRef() {
   if (!ENABLED) return null;
 
+  // 1. Intentar WebSocket cache (dato en tiempo real)
+  const wsSpot = wsProvider.getLatestSpot();
+  if (wsSpot) return wsSpot;
+
+  // 2. Fallback REST con cache
   const now = Date.now();
   if (spotRefCache && now - spotRefCachedAt < SPOT_REF_TTL_MS) {
     return spotRefCache;
@@ -164,7 +185,6 @@ async function getSpotRef() {
   try {
     const token = await authenticate();
 
-    // Intentar los próximos 3 meses hasta encontrar uno con precio
     const d = new Date();
     for (let i = 0; i < 3; i++) {
       const ref  = new Date(d.getFullYear(), d.getMonth() + i, 1);
@@ -186,7 +206,7 @@ async function getSpotRef() {
     }
     return null;
   } catch {
-    return spotRefCache ?? null; // devuelve el último válido si falla
+    return spotRefCache ?? null;
   }
 }
 
