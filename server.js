@@ -8,7 +8,7 @@ const { getRates }           = require('./src/services/exchangeService');
 const { getNews }            = require('./src/services/newsService');
 const { calculateProjection }                         = require('./src/services/projectionService');
 const { saveProjection, recordClose, getHistory } = require('./src/services/projectionHistoryService');
-const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
+const { getFutures, getSpotRef, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -17,51 +17,19 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Mes abreviado español → número
-const MONTH_NUM = { ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,OCT:10,NOV:11,DIC:12 };
-
-function nearestRofexSpot(contracts) {
-  if (!contracts?.length) return null;
-  const now = Date.now();
-
-  const scored = contracts
-    .map(c => {
-      const m = c.symbol?.match(/([A-Z]{3})(\d{2})$/);
-      if (!m) return null;
-      const mon = MONTH_NUM[m[1]];
-      if (!mon) return null;
-      const year = 2000 + parseInt(m[2], 10);
-      // Último día hábil del mes = aproximamos al día 20 para no pasarnos
-      const expiry = new Date(year, mon - 1, 20).getTime();
-      const price  = c.lastPrice ?? c.bid ?? c.ask;
-      if (!price) return null;
-      return { symbol: c.symbol, price, expiry, diff: expiry - now };
-    })
-    .filter(x => x !== null)
-    // Solo contratos que no hayan vencido aún (diff > -7 días de margen)
-    .filter(x => x.diff > -7 * 24 * 3600 * 1000)
-    .sort((a, b) => a.diff - b.diff); // más cercano primero
-
-  return scored[0] ?? null;
-}
-
 // --- API: tipos de cambio ---
 app.get('/api/fx', async (req, res) => {
   try {
-    const [rates, futures] = await Promise.all([
+    const [rates, rofex] = await Promise.all([
       getRates(),
-      getFutures().catch(() => ({ contracts: [] })),
+      getSpotRef().catch(() => null),   // precio Rofex contrato más cercano
     ]);
 
-    const rofex = nearestRofexSpot(futures.contracts);
-    const data  = {
-      ...rates,
-      rofexSpot: rofex
-        ? { symbol: rofex.symbol, price: rofex.price, fuente: 'Matba-Rofex' }
-        : null,
-    };
-
-    res.json({ ok: true, data, fetchedAt: new Date().toISOString() });
+    res.json({
+      ok: true,
+      data: { ...rates, rofexSpot: rofex },
+      fetchedAt: new Date().toISOString(),
+    });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });
   }

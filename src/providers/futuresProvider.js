@@ -16,10 +16,15 @@ let authToken = null;
 let tokenFetchedAt = 0;
 const TOKEN_TTL_MS = 55 * 60 * 1000; // 55 minutos (tokens duran ~1h)
 
-// Cache de futuros
+// Cache de futuros completo
 let futuresCache = null;
 let futuresCachedAt = 0;
 const FUTURES_CACHE_TTL_MS = 15 * 1000; // 15 segundos
+
+// Cache del spot de referencia (contrato más cercano, solo para USD card)
+let spotRefCache = null;
+let spotRefCachedAt = 0;
+const SPOT_REF_TTL_MS = 8 * 1000; // 8s — mismo ritmo que /api/fx
 
 function getUpcomingContracts(count = 6) {
   const contracts = [];
@@ -144,4 +149,39 @@ async function getFutures() {
   return { enabled: true, contracts, cached: false };
 }
 
-module.exports = { getFutures, ENABLED };
+/**
+ * Devuelve SOLO el precio del contrato DLR más próximo (para la card USD).
+ * Mucho más rápido que getFutures() — una sola llamada a la API.
+ */
+async function getSpotRef() {
+  if (!ENABLED) return null;
+
+  const now = Date.now();
+  if (spotRefCache && now - spotRefCachedAt < SPOT_REF_TTL_MS) {
+    return spotRefCache;
+  }
+
+  try {
+    const token = await authenticate();
+
+    // Intentar los próximos 3 meses hasta encontrar uno con precio
+    const d = new Date();
+    for (let i = 0; i < 3; i++) {
+      const ref  = new Date(d.getFullYear(), d.getMonth() + i, 1);
+      const sym  = `DLR/${MONTH_ABBR[ref.getMonth()]}${String(ref.getFullYear()).slice(-2)}`;
+      const data = await fetchContractData(token, sym);
+      const price = data.lastPrice ?? data.bid ?? data.ask;
+      if (price) {
+        const result = { symbol: sym, price, fuente: 'Matba-Rofex' };
+        spotRefCache   = result;
+        spotRefCachedAt = now;
+        return result;
+      }
+    }
+    return null;
+  } catch {
+    return spotRefCache ?? null; // devuelve el último válido si falla
+  }
+}
+
+module.exports = { getFutures, getSpotRef, ENABLED };
