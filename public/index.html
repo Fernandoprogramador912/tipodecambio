@@ -93,9 +93,9 @@
     .usd-col { display: flex; flex-direction: column; gap: .3rem; }
     .usd-col .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
     .usd-col .val { font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-    .val.buy  { color: var(--green); }
-    .val.sell { color: var(--red); }
-    .val.spread { color: var(--yellow); font-size: 1.6rem; }
+    .val.buy  { color: var(--text); }
+    .val.sell { color: var(--text); }
+    .val.spread { color: var(--text); font-size: 1.6rem; }
     .usd-footer {
       font-size: .68rem; color: var(--muted);
       display: flex; justify-content: space-between; align-items: center;
@@ -282,9 +282,9 @@
     .spread-val-block { text-align: center; }
     .spread-val-block .label { font-size: .6rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .2rem; }
     .spread-val-block .val   { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-    .spread-val-block .val.positive { color: var(--green); }
-    .spread-val-block .val.neutral  { color: var(--blue); }
-    .spread-val-block .val.negative { color: var(--red); }
+    .spread-val-block .val.positive { color: var(--text); }
+    .spread-val-block .val.neutral  { color: var(--text); }
+    .spread-val-block .val.negative { color: var(--text); }
 
     .spread-signal {
       display: flex;
@@ -330,10 +330,10 @@
       margin-bottom: .2rem;
     }
     .stat-box .stat-lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-    .stat-box.accuracy-high .stat-val { color: var(--green); }
-    .stat-box.accuracy-mid  .stat-val { color: var(--yellow); }
-    .stat-box.accuracy-low  .stat-val { color: var(--red); }
-    .stat-box.neutral       .stat-val { color: var(--blue); }
+    .stat-box.accuracy-high .stat-val { color: var(--text); }
+    .stat-box.accuracy-mid  .stat-val { color: var(--text); }
+    .stat-box.accuracy-low  .stat-val { color: var(--text); }
+    .stat-box.neutral       .stat-val { color: var(--text); }
 
     .history-table-wrap { overflow-x: auto; }
     .history-table {
@@ -1062,7 +1062,7 @@
 
       const isAlcista = r.directionArrow?.includes('▲') || r.directionArrow?.includes('↗');
       const isBajista = r.directionArrow?.includes('▼') || r.directionArrow?.includes('↘');
-      const dirColor  = isAlcista ? 'color:var(--red)' : isBajista ? 'color:var(--green)' : 'color:var(--blue)';
+      const dirColor  = 'color:var(--text)';
 
       return `<tr>
         <td>${r.date}</td>
