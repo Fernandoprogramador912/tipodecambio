@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard TC Argentina</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2330;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --yellow:    #d29922;
+      --blue:      #58a6ff;
+      --accent:    #1f6feb;
+      --radius:    12px;
+      --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    html { font-size: 16px; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: .75rem; }
+    .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
+    .logo span { color: var(--blue); }
+    .badge { font-size: .7rem; font-weight: 600; background: var(--accent); color: #fff; padding: .15rem .5rem; border-radius: 20px; letter-spacing: .04em; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: .75rem; font-size: .8rem; color: var(--muted); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; animation: pulse 2s ease-in-out infinite; }
+    .status-dot.error { background: var(--red); animation: none; }
+    .status-dot.loading { background: var(--yellow); }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+    /* ── Refresh bar ── */
+    .refresh-bar { height: 2px; background: var(--border); overflow: hidden; }
+    .refresh-progress { height: 100%; background: var(--accent); width: 0%; transition: width .1s linear; }
+
+    /* ── Layout ── */
+    main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; gap: 1.5rem; }
+
+    .section-title {
+      font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); margin-bottom: .75rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── FX principal row: USD grande + EUR pequeño ── */
+    .fx-main-row {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1rem;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .fx-main-row { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card USD (grande) ── */
+    .usd-card {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
+    }
+    .usd-card .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.1rem; flex-wrap: wrap; gap: .5rem;
+    }
+    .usd-card .card-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .usd-card .card-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .usd-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .usd-col { display: flex; flex-direction: column; gap: .3rem; }
+    .usd-col .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .usd-col .val { font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .val.buy  { color: var(--green); }
+    .val.sell { color: var(--red); }
+    .val.spread { color: var(--yellow); font-size: 1.6rem; }
+    .usd-footer {
+      font-size: .68rem; color: var(--muted);
+      display: flex; justify-content: space-between; align-items: center;
+      border-top: 1px solid var(--border); padding-top: .6rem; margin-top: 1rem;
+      flex-wrap: wrap; gap: .25rem;
+    }
+    .stale-badge { font-size: .65rem; background: rgba(248,81,73,.15); color: var(--red); padding: .1rem .4rem; border-radius: 4px; }
+
+    /* ── Card EUR (pequeño) ── */
+    .eur-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .eur-card .card-label { font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .25rem; }
+    .eur-card .card-name  { font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: .75rem; }
+    .eur-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+    .eur-col { display: flex; flex-direction: column; gap: .2rem; }
+    .eur-col .lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .eur-col .val { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .eur-footer { font-size: .62rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .6rem; }
+
+    /* ── Gráfico intradiario ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+    }
+    .chart-title { font-size: .85rem; font-weight: 600; color: var(--text); }
+    .chart-subtitle { font-size: .7rem; color: var(--muted); }
+    .chart-no-data {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: var(--muted); font-size: .85rem;
+      flex-direction: column; gap: .5rem;
+    }
+    .chart-wrapper { position: relative; height: 240px; }
+
+    /* ── Futuros ── */
+    .futures-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: .75rem;
+      margin-top: .75rem;
+    }
+    .futures-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      transition: border-color .2s;
+    }
+    .futures-card:hover { border-color: var(--accent); }
+    .futures-card .f-symbol { font-size: .75rem; font-weight: 700; color: var(--blue); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .5rem; }
+    .futures-card .f-last { font-size: 1.35rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; margin-bottom: .5rem; }
+    .futures-card .f-last.no-data { color: var(--muted); font-size: 1rem; }
+    .futures-bid-ask { display: flex; gap: .4rem; font-size: .72rem; margin-bottom: .4rem; }
+    .f-bid { color: var(--green); font-weight: 600; }
+    .f-ask { color: var(--red);   font-weight: 600; }
+    .f-sep { color: var(--muted); }
+    .futures-card .f-oi { font-size: .65rem; color: var(--muted); }
+    .futures-card .f-error { font-size: .7rem; color: var(--muted); font-style: italic; }
+    .futures-card.stub { opacity: .45; }
+    .futures-offline {
+      font-size: .8rem; color: var(--yellow);
+      background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.25);
+      border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem;
+    }
+
+    /* ── Noticias ── */
+    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    .news-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.25rem;
+      display: flex; flex-direction: column; gap: .5rem;
+      transition: border-color .2s, transform .15s;
+      text-decoration: none; color: inherit;
+    }
+    .news-card:hover { border-color: var(--blue); transform: translateY(-2px); }
+    .news-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .news-source { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--blue); }
+    .news-date { font-size: .68rem; color: var(--muted); margin-left: auto; }
+    .impact-tag { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .1rem .4rem; border-radius: 4px; }
+    .impact-muy_alto { background: rgba(248,81,73,.2); color: var(--red); }
+    .impact-alto     { background: rgba(210,153,34,.2); color: var(--yellow); }
+    .impact-medio    { background: rgba(88,166,255,.15); color: var(--blue); }
+    .impact-bajo     { background: rgba(139,148,158,.1); color: var(--muted); }
+    .news-title { font-size: .9rem; font-weight: 600; line-height: 1.4; color: var(--text); }
+    .news-summary { font-size: .78rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--muted); font-size: .88rem; grid-column: 1/-1; }
+    .skeleton { animation: shimmer 1.5s infinite; }
+    @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+    @media (max-width: 480px) {
+      .usd-values { grid-template-columns: 1fr 1fr; }
+      .usd-values .usd-col:last-child { display: none; }
+      .news-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">TC<span>AR</span></div>
+    <div class="badge">Live</div>
+  </div>
+  <div class="header-right">
+    <span id="statusDot" class="status-dot loading"></span>
+    <span id="statusText">Conectando...</span>
+    <span id="lastUpdate"></span>
+  </div>
+</header>
+
+<div class="refresh-bar">
+  <div class="refresh-progress" id="refreshProgress"></div>
+</div>
+
+<main>
+
+  <!-- TIPOS DE CAMBIO -->
+  <section>
+    <div class="section-title">Tipos de cambio mayoristas</div>
+    <div class="fx-main-row">
+
+      <!-- USD grande (prioridad) -->
+      <div class="usd-card skeleton" id="usdCard">
+        <div class="card-header">
+          <div>
+            <div class="card-label">🇺🇸 USD / ARS</div>
+            <div class="card-name">Cargando...</div>
+          </div>
+        </div>
+        <div class="usd-values">
+          <div class="usd-col"><span class="lbl">Compra</span><span class="val buy">—</span></div>
+          <div class="usd-col"><span class="lbl">Venta</span><span class="val sell">—</span></div>
+          <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">—</span></div>
+        </div>
+        <div class="usd-footer"><span>—</span><span>—</span></div>
+      </div>
+
+      <!-- EUR pequeño -->
+      <div class="eur-card skeleton" id="eurCard">
+        <div class="card-label">🇪🇺 EUR / ARS</div>
+        <div class="card-name">Cargando...</div>
+        <div class="eur-values">
+          <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">—</span></div>
+          <div class="eur-col"><span class="lbl">Venta</span><span class="val sell">—</span></div>
+          <div class="eur-col"><span class="lbl">Spread</span><span class="val spread">—</span></div>
+        </div>
+        <div class="eur-footer">—</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- GRÁFICO INTRADIARIO USD/ARS -->
+  <section>
+    <div class="section-title">Evolución intradiaria USD/ARS — rueda 10:00 a 15:00 hs</div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
+          <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
+        </div>
+      </div>
+      <div id="chartContainer">
+        <div class="chart-no-data" id="chartNoData">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span>El gráfico se construye durante la rueda (10:00–15:00 hs)</span>
+        </div>
+        <div class="chart-wrapper" id="chartWrapper" style="display:none">
+          <canvas id="fxChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FUTUROS DÓLAR -->
+  <section id="futuresSection">
+    <div class="section-title">Futuros dólar (Matba-Rofex)</div>
+    <div id="futuresContent"></div>
+  </section>
+
+  <!-- NOTICIAS -->
+  <section>
+    <div class="section-title">Noticias financieras con impacto cambiario</div>
+    <div class="news-grid" id="newsGrid">
+      <div class="empty-state skeleton">Cargando noticias...</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const REFRESH_INTERVAL  = 10000;
+  const NEWS_REFRESH_MS   = 5 * 60 * 1000;
+  const CHART_REFRESH_MS  = 30 * 1000;
+
+  // Horario de rueda + media hora de gracia: 10:00–15:30 ART (UTC-3)
+  function isTradingHours() {
+    const now = new Date();
+    const artMin = (now.getUTCHours() - 3 + 24) % 24 * 60 + now.getUTCMinutes();
+    return artMin >= 10 * 60 && artMin <= 15 * 60 + 30;
+  }
+
+  let fxChart = null;
+  let fxErrorCount = 0;
+  let lastNewsItems = [];
+
+  // ── Barra de progreso ──
+  function startProgressBar(duration) {
+    const bar = document.getElementById('refreshProgress');
+    let start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      const pct = Math.min(((ts - start) / duration) * 100, 100);
+      bar.style.width = pct + '%';
+      if (pct < 100) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ── Formato ──
+  function fmt(n) {
+    if (n == null) return '—';
+    return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+  }
+  function relativeTime(iso) {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'ahora';
+    if (mins < 60) return `hace ${mins}m`;
+    const hs = Math.floor(mins / 60);
+    if (hs < 24) return `hace ${hs}h`;
+    return `hace ${Math.floor(hs/24)}d`;
+  }
+
+  // ── Status ──
+  function setStatus(state, text) {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    dot.className = 'status-dot ' + (state === 'ok' ? '' : state);
+    txt.textContent = text;
+  }
+
+  // ── Render USD (card grande) ──
+  function renderUSD(r, stale) {
+    const card = document.getElementById('usdCard');
+    card.classList.remove('skeleton');
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="card-label">🇺🇸 USD / ARS</div>
+          <div class="card-name">${r.nombre}</div>
+        </div>
+        ${stale ? '<span class="stale-badge">Dato desactualizado</span>' : ''}
+      </div>
+      <div class="usd-values">
+        <div class="usd-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
+        <div class="usd-col"><span class="lbl">Venta</span><span class="val sell">$${fmt(r.venta)}</span></div>
+        <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
+      </div>
+      <div class="usd-footer">
+        <span>Actualizado: ${fmtDate(r.fechaActualizacion)}</span>
+        <span>${r.fuente}</span>
+      </div>`;
+  }
+
+  // ── Render EUR (card pequeño) ──
+  function renderEUR(r) {
+    const card = document.getElementById('eurCard');
+    card.classList.remove('skeleton');
+    card.innerHTML = `
+      <div class="card-label">🇪🇺 EUR / ARS</div>
+      <div class="card-name">${r.nombre}</div>
+      <div class="eur-values">
+        <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
+        <div class="eur-col"><span class="lbl">Venta</span><span class="val sell">$${fmt(r.venta)}</span></div>
+        <div class="eur-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
+      </div>
+      <div class="eur-footer">Act: ${fmtDate(r.fechaActualizacion)} · ${r.fuente}</div>`;
+  }
+
+  // ── Render Futuros ──
+  function renderFutures(data) {
+    const content = document.getElementById('futuresContent');
+    const sectionTitle = document.querySelector('#futuresSection .section-title');
+
+    if (!data.enabled) {
+      sectionTitle.style.opacity = '.5';
+      content.innerHTML = `<p style="font-size:.8rem;color:var(--muted);">Módulo desactivado — configurar credenciales en .env</p>`;
+      return;
+    }
+
+    sectionTitle.style.opacity = '1';
+    const contracts = data.contracts || [];
+    const hasData = contracts.some(c => c.lastPrice != null);
+    const offlineNotice = !hasData
+      ? `<div class="futures-offline">Rueda cerrada — los futuros operan de lunes a viernes de 10:00 a 15:00 hs. Se muestran los últimos precios disponibles.</div>`
+      : '';
+
+    content.innerHTML = offlineNotice + `
+      <div class="futures-grid">
+        ${contracts.map(c => {
+          const hasPrice = c.lastPrice != null;
+          const bidAsk = (c.bid != null || c.ask != null)
+            ? `<div class="futures-bid-ask"><span class="f-bid">B $${fmt(c.bid)}</span><span class="f-sep">/</span><span class="f-ask">A $${fmt(c.ask)}</span></div>`
+            : '';
+          const oi = c.openInterest != null ? `<div class="f-oi">OI: ${c.openInterest.toLocaleString('es-AR')}</div>` : '';
+          return `<div class="futures-card${c.stub ? ' stub' : ''}">
+            <div class="f-symbol">${c.symbol}</div>
+            <div class="f-last${hasPrice ? '' : ' no-data'}">${hasPrice ? '$' + fmt(c.lastPrice) : '—'}</div>
+            ${bidAsk}${oi}
+            ${c.error && !hasPrice ? `<div class="f-error">${c.error}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // ── Render Noticias ──
+  function renderNews(items) {
+    const grid = document.getElementById('newsGrid');
+    if (!items || items.length === 0) {
+      grid.innerHTML = `<div class="empty-state"><p>No se encontraron noticias relevantes en este momento.</p></div>`;
+      return;
+    }
+    const labels = { muy_alto:'Impacto muy alto', alto:'Impacto alto', medio:'Impacto medio', bajo:'Impacto bajo' };
+    grid.innerHTML = items.map(item => `
+      <a class="news-card" href="${item.link}" target="_blank" rel="noopener noreferrer">
+        <div class="news-meta">
+          <span class="news-source">${item.source}</span>
+          <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
+          <span class="news-date">${relativeTime(item.pubDate)}</span>
+        </div>
+        <div class="news-title">${item.title}</div>
+        ${item.summary ? `<div class="news-summary">${item.summary}</div>` : ''}
+      </a>`).join('');
+  }
+
+  // ── Gráfico intradiario ──
+  // Genera slots fijos cada SLOT_MIN minutos de 10:00 a 15:00 ART
+  const SLOT_MIN = 10; // resolución del eje X
+  const SLOTS_COUNT = (5 * 60) / SLOT_MIN + 1; // 10:00..15:00 inclusive = 31 slots
+
+  function generateSlots() {
+    const slots = [];
+    for (let i = 0; i < SLOTS_COUNT; i++) {
+      const totalMin = 10 * 60 + i * SLOT_MIN;
+      const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+      const mm = String(totalMin % 60).padStart(2, '0');
+      slots.push(`${hh}:${mm}`);
+    }
+    return slots;
+  }
+
+  // Convierte ISO timestamp a minutos desde medianoche ART
+  function toARTMinutes(iso) {
+    const d = new Date(iso);
+    // ART = UTC-3
+    const artMs = d.getTime() - 3 * 60 * 60 * 1000;
+    const art = new Date(artMs);
+    return art.getUTCHours() * 60 + art.getUTCMinutes();
+  }
+
+  function buildChart(points) {
+    const noData  = document.getElementById('chartNoData');
+    const wrapper = document.getElementById('chartWrapper');
+    const subtitle = document.getElementById('chartSubtitle');
+
+    const slots  = generateSlots(); // ['10:00','10:10',...,'15:00']
+    const values = new Array(SLOTS_COUNT).fill(null);
+
+    // Para cada punto, ubicarlo en su slot más cercano dentro del rango
+    (points || []).forEach(p => {
+      const artMin = toARTMinutes(p.ts);
+      const slotMin = artMin - 10 * 60; // minutos desde las 10:00
+      if (slotMin < 0 || slotMin > 5 * 60) return; // fuera de 10:00-15:00
+      const idx = Math.round(slotMin / SLOT_MIN);
+      if (idx >= 0 && idx < SLOTS_COUNT) {
+        values[idx] = p.venta;
+      }
+    });
+
+    // Contar puntos reales registrados
+    const realCount = values.filter(v => v !== null).length;
+
+    if (realCount === 0) {
+      noData.style.display = 'flex';
+      wrapper.style.display = 'none';
+      subtitle.textContent = 'El gráfico se construye durante la rueda (10:00–15:00 hs)';
+      if (fxChart) { fxChart.destroy(); fxChart = null; }
+      return;
+    }
+
+    noData.style.display = 'none';
+    wrapper.style.display = 'block';
+
+    const allVals = values.filter(v => v !== null);
+    const minVal  = Math.min(...allVals);
+    const maxVal  = Math.max(...allVals);
+    const padding = Math.max((maxVal - minVal) * 0.2, 2);
+
+    const chartData = {
+      labels: slots,
+      datasets: [{
+        label: 'Venta USD/ARS',
+        data: values,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,.07)',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        fill: true,
+        tension: 0.3,
+        spanGaps: true,  // conecta los puntos aunque haya nulls
+      }],
+    };
+
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: '#1c2330',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#8b949e',
+          callbacks: {
+            label: ctx => ctx.parsed.y != null
+              ? ` $${ctx.parsed.y.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+              : ' Sin dato',
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#8b949e',
+            font: { size: 11 },
+            maxRotation: 0,
+            // Mostrar solo cada hora: 10:00, 11:00, ..., 15:00
+            callback: (val, idx) => slots[idx].endsWith(':00') ? slots[idx] : '',
+          },
+          grid: { color: 'rgba(48,54,61,.5)' },
+        },
+        y: {
+          min: minVal - padding,
+          max: maxVal + padding,
+          ticks: {
+            color: '#8b949e',
+            font: { size: 11 },
+            callback: v => '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 0 }),
+          },
+          grid: { color: 'rgba(48,54,61,.5)' },
+        }
+      }
+    };
+
+    if (fxChart) {
+      fxChart.data = chartData;
+      fxChart.options.scales.y.min = minVal - padding;
+      fxChart.options.scales.y.max = maxVal + padding;
+      fxChart.update('none');
+    } else {
+      fxChart = new Chart(document.getElementById('fxChart').getContext('2d'), { type: 'line', data: chartData, options });
+    }
+
+    const lastVal = allVals[allVals.length - 1];
+    subtitle.textContent = `${realCount} puntos registrados · última cotización $${fmt(lastVal)} (venta)`;
+  }
+
+  // ── Fetch FX ──
+  async function fetchFX() {
+    try {
+      const res = await fetch('/api/fx');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      const { usd, eur, stale } = json.data;
+      if (usd) renderUSD(usd, stale);
+      if (eur) renderEUR(eur);
+      fxErrorCount = 0;
+      document.getElementById('lastUpdate').textContent =
+        'Última actualización: ' + new Date().toLocaleTimeString('es-AR');
+      setStatus('ok', 'En línea');
+    } catch (err) {
+      fxErrorCount++;
+      setStatus('error', `Error (${fxErrorCount}): ${err.message}`);
+    }
+  }
+
+  // ── Fetch Historial ──
+  async function fetchHistory() {
+    try {
+      const res = await fetch('/api/fx/history');
+      if (!res.ok) return;
+      const json = await res.json();
+      buildChart(json.points || []);
+    } catch {}
+  }
+
+  // ── Fetch Noticias ──
+  async function fetchNews() {
+    try {
+      const res = await fetch('/api/news');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      lastNewsItems = json.items || [];
+      renderNews(lastNewsItems);
+    } catch {
+      if (lastNewsItems.length === 0)
+        document.getElementById('newsGrid').innerHTML =
+          `<div class="empty-state">No se pudieron cargar las noticias. Reintentando...</div>`;
+    }
+  }
+
+  // ── Fetch Futuros ──
+  async function fetchFutures() {
+    try {
+      const res = await fetch('/api/futures');
+      const json = await res.json();
+      renderFutures(json.data || { enabled: false, contracts: [] });
+    } catch {
+      renderFutures({ enabled: false, contracts: [] });
+    }
+  }
+
+  // ── Init & loops ──
+  async function init() {
+    await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchHistory()]);
+  }
+
+  function startFXLoop() {
+    if (isTradingHours()) {
+      startProgressBar(REFRESH_INTERVAL);
+    } else {
+      // Fuera de rueda: ocultar la barra de progreso y mostrar estado
+      document.getElementById('refreshProgress').style.width = '0%';
+      setStatus('ok', 'Mercado cerrado · sin refresco automático');
+    }
+
+    setInterval(() => {
+      if (!isTradingHours()) return; // no hacer nada fuera del horario
+      fetchFX();
+      fetchFutures();
+      fetchHistory();
+      startProgressBar(REFRESH_INTERVAL);
+    }, REFRESH_INTERVAL);
+  }
+
+  init().then(() => {
+    startFXLoop();
+    setInterval(() => {
+      if (!isTradingHours()) {
+        // Para noticias: ampliar a 8:00–17:00 ART
+        const now = new Date();
+        const artMin = (now.getUTCHours() - 3 + 24) % 24 * 60 + now.getUTCMinutes();
+        if (artMin < 8 * 60 || artMin > 17 * 60) return;
+      }
+      fetchNews();
+    }, NEWS_REFRESH_MS);
+  });
+</script>
+</body>
+</html>
