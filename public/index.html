@@ -253,6 +253,73 @@
       opacity: .7;
     }
 
+    /* ── Historial proyecciones ── */
+    .history-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      text-align: center;
+    }
+    .stat-box .stat-val {
+      font-size: 1.6rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: .2rem;
+    }
+    .stat-box .stat-lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .stat-box.accuracy-high .stat-val { color: var(--green); }
+    .stat-box.accuracy-mid  .stat-val { color: var(--yellow); }
+    .stat-box.accuracy-low  .stat-val { color: var(--red); }
+    .stat-box.neutral       .stat-val { color: var(--blue); }
+
+    .history-table-wrap { overflow-x: auto; }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .78rem;
+    }
+    .history-table th {
+      text-align: left;
+      font-size: .65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .history-table td {
+      padding: .6rem .75rem;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+      vertical-align: middle;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: .15rem .5rem;
+      border-radius: 4px;
+    }
+    .result-correct   { background: rgba(63,185,80,.15);  color: var(--green);  }
+    .result-incorrect { background: rgba(248,81,73,.15);  color: var(--red);    }
+    .result-pending   { background: rgba(139,148,158,.1); color: var(--muted);  }
+
+    .direction-cell { font-weight: 600; white-space: nowrap; }
+
     @media (max-width: 480px) {
       .usd-values { grid-template-columns: 1fr 1fr; }
       .usd-values .usd-col:last-child { display: none; }
@@ -352,6 +419,33 @@
   <section id="futuresSection">
     <div class="section-title">Futuros dólar (Matba-Rofex)</div>
     <div id="futuresContent"></div>
+  </section>
+
+  <!-- HISTORIAL DE PROYECCIONES -->
+  <section>
+    <div class="section-title">Historial de proyecciones — registro de aciertos</div>
+    <div class="chart-card" id="historySection">
+      <div class="history-stats" id="historyStats"></div>
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Día</th>
+              <th>Dirección proyectada</th>
+              <th>Rango estimado</th>
+              <th>Spot al proyectar</th>
+              <th>Cierre real</th>
+              <th>Dirección</th>
+              <th>En rango</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Cargando historial...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- NOTICIAS -->
@@ -705,6 +799,10 @@
         lsAddPoint(usd.venta, usd.compra);
         fetchHistory();
       }
+      // Registrar precio de cierre si estamos en ventana 15:00–15:30
+      if (usd?.venta && isCloseWindow()) {
+        sendClosePrice(usd.venta);
+      }
       fxErrorCount = 0;
       document.getElementById('lastUpdate').textContent =
         'Última actualización: ' + new Date().toLocaleTimeString('es-AR');
@@ -764,6 +862,112 @@
     }
   }
 
+  // ── Historial de proyecciones ──
+  let closeSentToday = false;
+
+  function isCloseWindow() {
+    // 15:00–15:30 ART = registro del precio de cierre
+    const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const min = art.getUTCHours() * 60 + art.getUTCMinutes();
+    return min >= 15 * 60 && min <= 15 * 60 + 30;
+  }
+
+  function accuracyClass(pct) {
+    if (pct === null) return 'neutral';
+    if (pct >= 70) return 'accuracy-high';
+    if (pct >= 50) return 'accuracy-mid';
+    return 'accuracy-low';
+  }
+
+  function renderHistory(data) {
+    const { records, stats } = data;
+
+    // Stats
+    const statsEl = document.getElementById('historyStats');
+    statsEl.innerHTML = [
+      { val: stats.total,    lbl: 'Proyecciones guardadas', cls: 'neutral' },
+      { val: stats.closed,   lbl: 'Con cierre registrado',  cls: 'neutral' },
+      { val: stats.pending,  lbl: 'Pendientes de cierre',   cls: 'neutral' },
+      { val: stats.directionAccuracy !== null ? stats.directionAccuracy + '%' : '—', lbl: 'Acierto dirección', cls: accuracyClass(stats.directionAccuracy) },
+      { val: stats.rangeAccuracy     !== null ? stats.rangeAccuracy     + '%' : '—', lbl: 'Precio en rango',   cls: accuracyClass(stats.rangeAccuracy) },
+    ].map(s => `
+      <div class="stat-box ${s.cls}">
+        <div class="stat-val">${s.val}</div>
+        <div class="stat-lbl">${s.lbl}</div>
+      </div>`).join('');
+
+    // Tabla
+    const tbody = document.getElementById('historyBody');
+    if (!records || records.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">
+        Sin registros aún. La primera proyección se guarda automáticamente al abrir la página durante la rueda (10:00–15:00 hs).
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = records.map(r => {
+      const dirResult = r.wasDirectionCorrect === true
+        ? `<span class="result-badge result-correct">✓ Correcto</span>`
+        : r.wasDirectionCorrect === false
+        ? `<span class="result-badge result-incorrect">✗ Incorrecto</span>`
+        : `<span class="result-badge result-pending">⏳ Pendiente</span>`;
+
+      const rangeResult = r.wasInRange === true
+        ? `<span class="result-badge result-correct">✓ Sí</span>`
+        : r.wasInRange === false
+        ? `<span class="result-badge result-incorrect">✗ No</span>`
+        : `<span class="result-badge result-pending">⏳ —</span>`;
+
+      const isAlcista = r.directionArrow?.includes('▲') || r.directionArrow?.includes('↗');
+      const isBajista = r.directionArrow?.includes('▼') || r.directionArrow?.includes('↘');
+      const dirColor  = isAlcista ? 'color:var(--red)' : isBajista ? 'color:var(--green)' : 'color:var(--blue)';
+
+      return `<tr>
+        <td>${r.date}</td>
+        <td style="color:var(--muted)">${r.dayName}</td>
+        <td class="direction-cell" style="${dirColor}">${r.directionArrow || ''} ${r.direction}</td>
+        <td style="font-variant-numeric:tabular-nums">$${r.estimatedMin?.toLocaleString('es-AR')} – $${r.estimatedMax?.toLocaleString('es-AR')}</td>
+        <td style="font-variant-numeric:tabular-nums">$${r.spot?.toLocaleString('es-AR')}</td>
+        <td style="font-variant-numeric:tabular-nums">${r.actualClose ? '$' + r.actualClose.toLocaleString('es-AR') : '<span style="color:var(--muted)">Sin registrar</span>'}</td>
+        <td>${dirResult}</td>
+        <td>${rangeResult}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function fetchProjectionHistory() {
+    try {
+      const res  = await fetch('/api/projection/history');
+      const json = await res.json();
+      if (json.ok) renderHistory({ records: json.records, stats: json.stats });
+    } catch {}
+  }
+
+  async function saveProjectionRecord() {
+    // Solo guardar durante horario de rueda (10:00–15:00)
+    if (!isTradingHours()) return;
+    try {
+      await fetch('/api/projection/record', { method: 'POST' });
+      fetchProjectionHistory();
+    } catch {}
+  }
+
+  async function sendClosePrice(price) {
+    if (closeSentToday) return;
+    try {
+      const res  = await fetch('/api/projection/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ closePrice: price }),
+      });
+      const json = await res.json();
+      if (json.ok && json.updated) {
+        closeSentToday = true;
+        fetchProjectionHistory();
+      }
+    } catch {}
+  }
+
   // ── Fetch Proyección ──
   async function fetchProjection() {
     try {
@@ -787,6 +991,10 @@
   // ── Init & loops ──
   async function init() {
     await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchHistory(), fetchProjection()]);
+    // Cargar historial de proyecciones siempre (independiente del horario)
+    fetchProjectionHistory();
+    // Guardar proyección del día si estamos en rueda
+    saveProjectionRecord();
   }
 
   function startFXLoop() {

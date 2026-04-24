@@ -6,7 +6,8 @@ const path    = require('path');
 
 const { getRates }           = require('./src/services/exchangeService');
 const { getNews }            = require('./src/services/newsService');
-const { calculateProjection } = require('./src/services/projectionService');
+const { calculateProjection }                         = require('./src/services/projectionService');
+const { saveProjection, recordClose, getHistory } = require('./src/services/projectionHistoryService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
 const app  = express();
@@ -35,6 +36,43 @@ app.get('/api/projection', async (req, res) => {
     const contracts = futures.contracts || [];
     const projection = calculateProjection(spot, contracts);
     res.json({ ok: true, data: projection });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: guardar proyección del día ---
+app.post('/api/projection/record', async (req, res) => {
+  try {
+    const [rates, futures] = await Promise.all([getRates(), getFutures()]);
+    const spot = rates.usd?.venta;
+    if (!spot) return res.status(503).json({ ok: false, error: 'Sin cotización spot' });
+    const projection = calculateProjection(spot, futures.contracts || []);
+    const result = saveProjection(projection);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: registrar precio de cierre real ---
+app.post('/api/projection/close', async (req, res) => {
+  try {
+    const { closePrice } = req.body;
+    if (!closePrice || isNaN(closePrice)) {
+      return res.status(400).json({ ok: false, error: 'closePrice requerido' });
+    }
+    const result = recordClose(Number(closePrice));
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: historial de proyecciones ---
+app.get('/api/projection/history', (req, res) => {
+  try {
+    res.json({ ok: true, ...getHistory() });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
