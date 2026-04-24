@@ -56,118 +56,126 @@
     .refresh-progress { height: 100%; background: var(--accent); width: 0%; transition: width .1s linear; }
 
     /* ── Layout ── */
-    main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; gap: 1.5rem; }
+    main { max-width: 1400px; margin: 0 auto; padding: 1rem 1.25rem 2rem; display: grid; gap: .75rem; }
 
     .section-title {
-      font-size: .72rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: .08em; color: var(--muted); margin-bottom: .75rem;
+      font-size: .68rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); margin-bottom: .4rem;
       display: flex; align-items: center; gap: .5rem;
     }
     .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* ── FX principal row: USD grande + EUR pequeño ── */
-    .fx-main-row {
+    /* ── Fila 1: USD + EUR + Spread MEP ── */
+    .fx-top-grid {
       display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 1rem;
+      grid-template-columns: 2fr 1fr 1.6fr;
+      gap: .75rem;
       align-items: start;
     }
-    @media (max-width: 860px) {
-      .fx-main-row { grid-template-columns: 1fr; }
+    @media (max-width: 1000px) { .fx-top-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px)  { .fx-top-grid { grid-template-columns: 1fr; } }
+
+    /* ── Fila 2: Proyección + Gráfico ── */
+    .proj-chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: .75rem;
+      align-items: start;
     }
+    @media (max-width: 860px) { .proj-chart-grid { grid-template-columns: 1fr; } }
 
     /* ── Card USD (grande) ── */
     .usd-card {
       background: var(--surface);
       border: 1px solid var(--accent);
       border-radius: var(--radius);
-      padding: 1.5rem 1.75rem;
+      padding: 1rem 1.25rem;
     }
     .usd-card .card-header {
       display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1.1rem; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: .75rem; flex-wrap: wrap; gap: .4rem;
     }
-    .usd-card .card-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-    .usd-card .card-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
-    .usd-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-    .usd-col { display: flex; flex-direction: column; gap: .3rem; }
-    .usd-col .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .usd-col .val { font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .usd-card .card-label { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .usd-card .card-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .usd-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .usd-col { display: flex; flex-direction: column; gap: .25rem; }
+    .usd-col .lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .usd-col .val { font-size: 1.8rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
     .val.buy  { color: var(--text); }
     .val.sell { color: var(--text); }
-    .val.spread { color: var(--text); font-size: 1.6rem; }
+    .val.spread { color: var(--text); font-size: 1.4rem; }
     .usd-footer {
-      font-size: .68rem; color: var(--muted);
+      font-size: .65rem; color: var(--muted);
       display: flex; justify-content: space-between; align-items: center;
-      border-top: 1px solid var(--border); padding-top: .6rem; margin-top: 1rem;
-      flex-wrap: wrap; gap: .25rem;
+      border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .75rem;
+      flex-wrap: wrap; gap: .2rem;
     }
-    .stale-badge { font-size: .65rem; background: rgba(248,81,73,.15); color: var(--red); padding: .1rem .4rem; border-radius: 4px; }
+    .stale-badge { font-size: .62rem; background: rgba(248,81,73,.15); color: var(--red); padding: .1rem .4rem; border-radius: 4px; }
 
     /* ── Card EUR (pequeño) ── */
     .eur-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1rem 1.25rem;
+      padding: .85rem 1rem;
     }
-    .eur-card .card-label { font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .25rem; }
-    .eur-card .card-name  { font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: .75rem; }
-    .eur-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
-    .eur-col { display: flex; flex-direction: column; gap: .2rem; }
-    .eur-col .lbl { font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .eur-col .val { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .eur-footer { font-size: .62rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .6rem; }
+    .eur-card .card-label { font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .2rem; }
+    .eur-card .card-name  { font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: .6rem; }
+    .eur-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+    .eur-col { display: flex; flex-direction: column; gap: .15rem; }
+    .eur-col .lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .eur-col .val { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .eur-footer { font-size: .6rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: .4rem; margin-top: .5rem; }
 
     /* ── Gráfico intradiario ── */
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
+      padding: .85rem 1rem;
     }
     .chart-header {
       display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: .6rem; flex-wrap: wrap; gap: .4rem;
     }
-    .chart-title { font-size: .85rem; font-weight: 600; color: var(--text); }
-    .chart-subtitle { font-size: .7rem; color: var(--muted); }
+    .chart-title { font-size: .82rem; font-weight: 600; color: var(--text); }
+    .chart-subtitle { font-size: .67rem; color: var(--muted); }
     .chart-no-data {
       display: flex; align-items: center; justify-content: center;
-      height: 200px; color: var(--muted); font-size: .85rem;
+      height: 160px; color: var(--muted); font-size: .82rem;
       flex-direction: column; gap: .5rem;
     }
-    .chart-wrapper { position: relative; height: 240px; }
+    .chart-wrapper { position: relative; height: 185px; }
 
     /* ── Futuros ── */
     .futures-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: .75rem;
-      margin-top: .75rem;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: .5rem;
+      margin-top: .4rem;
     }
     .futures-card {
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.1rem;
+      border-radius: 8px;
+      padding: .7rem .85rem;
       transition: border-color .2s;
     }
     .futures-card:hover { border-color: var(--accent); }
-    .futures-card .f-symbol { font-size: .75rem; font-weight: 700; color: var(--blue); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .5rem; }
-    .futures-card .f-last { font-size: 1.35rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; margin-bottom: .5rem; }
-    .futures-card .f-last.no-data { color: var(--muted); font-size: 1rem; }
-    .futures-bid-ask { display: flex; gap: .4rem; font-size: .72rem; margin-bottom: .4rem; }
+    .futures-card .f-symbol { font-size: .68rem; font-weight: 700; color: var(--blue); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .3rem; }
+    .futures-card .f-last { font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; margin-bottom: .3rem; }
+    .futures-card .f-last.no-data { color: var(--muted); font-size: .9rem; }
+    .futures-bid-ask { display: flex; gap: .3rem; font-size: .66rem; margin-bottom: .25rem; }
     .f-bid { color: var(--green); font-weight: 600; }
     .f-ask { color: var(--red);   font-weight: 600; }
     .f-sep { color: var(--muted); }
-    .futures-card .f-oi { font-size: .65rem; color: var(--muted); }
-    .futures-card .f-error { font-size: .7rem; color: var(--muted); font-style: italic; }
+    .futures-card .f-oi { font-size: .6rem; color: var(--muted); }
+    .futures-card .f-error { font-size: .65rem; color: var(--muted); font-style: italic; }
     .futures-card.stub { opacity: .45; }
     .futures-offline {
-      font-size: .8rem; color: var(--yellow);
+      font-size: .75rem; color: var(--yellow);
       background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.25);
-      border-radius: 8px; padding: .6rem 1rem; margin-bottom: .75rem;
+      border-radius: 6px; padding: .4rem .8rem; margin-bottom: .5rem;
     }
 
     /* ── Noticias ── */
@@ -199,7 +207,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
+      padding: .85rem 1rem;
     }
     .proj-card.alcista  { border-color: rgba(248,81,73,.4); }
     .proj-card.bajista  { border-color: rgba(63,185,80,.4); }
@@ -257,31 +265,29 @@
     .spread-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
+      border-radius: var(--radius);
+      padding: .85rem 1rem;
       display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: .65rem;
     }
     .spread-title {
-      font-size: .65rem;
+      font-size: .62rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .07em;
       color: var(--muted);
-      margin-bottom: .3rem;
+      margin-bottom: .1rem;
     }
     .spread-main {
       display: flex;
-      gap: 2rem;
+      gap: 1.25rem;
       align-items: flex-end;
       flex-wrap: wrap;
     }
     .spread-val-block { text-align: center; }
-    .spread-val-block .label { font-size: .6rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .2rem; }
-    .spread-val-block .val   { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+    .spread-val-block .label { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .15rem; }
+    .spread-val-block .val   { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
     .spread-val-block .val.positive { color: var(--text); }
     .spread-val-block .val.neutral  { color: var(--text); }
     .spread-val-block .val.negative { color: var(--text); }
@@ -289,10 +295,10 @@
     .spread-signal {
       display: flex;
       align-items: center;
-      gap: .5rem;
-      padding: .5rem 1rem;
-      border-radius: 8px;
-      font-size: .75rem;
+      gap: .4rem;
+      padding: .35rem .7rem;
+      border-radius: 6px;
+      font-size: .68rem;
       font-weight: 700;
     }
     .spread-signal.hot   { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
@@ -301,12 +307,28 @@
 
     .spread-prices {
       display: flex;
-      gap: 1.5rem;
+      gap: 1rem;
       flex-wrap: wrap;
     }
     .spread-price-item { text-align: center; }
-    .spread-price-item .sp-lbl { font-size: .6rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
-    .spread-price-item .sp-val { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .spread-price-item .sp-lbl { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
+    .spread-price-item .sp-val { font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* ── Toggle historial ── */
+    .history-toggle-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: .15rem .6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .history-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
 
     /* ── Historial proyecciones ── */
     .history-stats {
@@ -379,6 +401,7 @@
       .usd-values { grid-template-columns: 1fr 1fr; }
       .usd-values .usd-col:last-child { display: none; }
       .news-grid { grid-template-columns: 1fr; }
+      .proj-chart-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -402,12 +425,11 @@
 
 <main>
 
-  <!-- TIPOS DE CAMBIO -->
+  <!-- FILA 1: USD + EUR + Spread MEP -->
   <section>
-    <div class="section-title">Tipos de cambio mayoristas</div>
-    <div class="fx-main-row">
+    <div class="section-title">Tipos de cambio mayoristas · Spread MEP/Mayorista</div>
+    <div class="fx-top-grid">
 
-      <!-- USD grande (prioridad) -->
       <div class="usd-card skeleton" id="usdCard">
         <div class="card-header">
           <div>
@@ -423,7 +445,6 @@
         <div class="usd-footer"><span>—</span><span>—</span></div>
       </div>
 
-      <!-- EUR pequeño -->
       <div class="eur-card skeleton" id="eurCard">
         <div class="card-label">🇪🇺 EUR / ARS</div>
         <div class="card-name">Cargando...</div>
@@ -435,61 +456,57 @@
         <div class="eur-footer">—</div>
       </div>
 
-    </div>
-  </section>
-
-  <!-- SPREAD MEP vs MAYORISTA -->
-  <section>
-    <div class="section-title">Spread MEP vs. Mayorista — oportunidad de arbitraje</div>
-    <div class="spread-card skeleton" id="spreadCard">
-      <div style="color:var(--muted);font-size:.85rem;">Cargando datos MEP...</div>
-    </div>
-  </section>
-
-  <!-- PROYECCIÓN DEL DÍA -->
-  <section>
-    <div class="section-title">Proyección intradiaria USD/ARS</div>
-    <div class="proj-card skeleton" id="projCard">
-      <div style="color:var(--muted);font-size:.85rem;">Calculando proyección...</div>
-    </div>
-  </section>
-
-  <!-- GRÁFICO INTRADIARIO USD/ARS -->
-  <section>
-    <div class="section-title">Evolución intradiaria USD/ARS — rueda 10:00 a 15:00 hs</div>
-    <div class="chart-card">
-      <div class="chart-header">
-        <div>
-          <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
-          <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
-        </div>
+      <div class="spread-card skeleton" id="spreadCard">
+        <div style="color:var(--muted);font-size:.82rem;">Cargando MEP...</div>
       </div>
-      <div id="chartContainer">
-        <div class="chart-no-data" id="chartNoData">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <span>El gráfico se construye durante la rueda (10:00–15:00 hs)</span>
+
+    </div>
+  </section>
+
+  <!-- FILA 2: Proyección + Gráfico -->
+  <section>
+    <div class="section-title">Proyección intradiaria · Evolución USD/ARS rueda</div>
+    <div class="proj-chart-grid">
+      <div class="proj-card skeleton" id="projCard">
+        <div style="color:var(--muted);font-size:.82rem;">Calculando proyección...</div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
+            <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
+          </div>
         </div>
-        <div class="chart-wrapper" id="chartWrapper" style="display:none">
-          <canvas id="fxChart"></canvas>
+        <div id="chartContainer">
+          <div class="chart-no-data" id="chartNoData">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>El gráfico se construye durante la rueda (10:00–15:00 hs)</span>
+          </div>
+          <div class="chart-wrapper" id="chartWrapper" style="display:none">
+            <canvas id="fxChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- FUTUROS DÓLAR -->
+  <!-- FILA 3: Futuros -->
   <section id="futuresSection">
     <div class="section-title">Futuros dólar (Matba-Rofex)</div>
     <div id="futuresContent"></div>
   </section>
 
-  <!-- HISTORIAL DE PROYECCIONES -->
+  <!-- FILA 4: Historial compacto (tabla colapsable) -->
   <section>
-    <div class="section-title">Historial de proyecciones — registro de aciertos</div>
-    <div class="chart-card" id="historySection">
+    <div class="section-title">
+      Historial de proyecciones — registro de aciertos
+      <button class="history-toggle-btn" id="toggleHistoryBtn" onclick="toggleHistoryTable()">Ver tabla ▾</button>
+    </div>
+    <div id="historySection">
       <div class="history-stats" id="historyStats"></div>
-      <div class="history-table-wrap">
+      <div class="history-table-wrap" id="historyTableWrap" style="display:none; margin-top:.5rem;">
         <table class="history-table">
           <thead>
             <tr>
@@ -497,21 +514,21 @@
               <th>Día</th>
               <th>Dirección proyectada</th>
               <th>Rango estimado</th>
-              <th>Spot al proyectar</th>
+              <th>Spot</th>
               <th>Cierre real</th>
               <th>Dirección</th>
               <th>En rango</th>
             </tr>
           </thead>
           <tbody id="historyBody">
-            <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Cargando historial...</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.5rem;">Cargando historial...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </section>
 
-  <!-- NOTICIAS -->
+  <!-- NOTICIAS — visibles al hacer scroll -->
   <section>
     <div class="section-title">Noticias financieras con impacto cambiario</div>
     <div class="news-grid" id="newsGrid">
@@ -924,6 +941,15 @@
         document.getElementById('newsGrid').innerHTML =
           `<div class="empty-state">No se pudieron cargar las noticias. Reintentando...</div>`;
     }
+  }
+
+  // ── Toggle tabla historial ──
+  function toggleHistoryTable() {
+    const wrap = document.getElementById('historyTableWrap');
+    const btn  = document.getElementById('toggleHistoryBtn');
+    const open = wrap.style.display === 'none';
+    wrap.style.display = open ? 'block' : 'none';
+    btn.textContent    = open ? 'Ocultar tabla ▴' : 'Ver tabla ▾';
   }
 
   // ── Spread MEP vs Mayorista ──
