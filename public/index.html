@@ -253,6 +253,61 @@
       opacity: .7;
     }
 
+    /* ── Card Spread MEP/Mayorista ── */
+    .spread-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .spread-title {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      margin-bottom: .3rem;
+    }
+    .spread-main {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .spread-val-block { text-align: center; }
+    .spread-val-block .label { font-size: .6rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .2rem; }
+    .spread-val-block .val   { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+    .spread-val-block .val.positive { color: var(--green); }
+    .spread-val-block .val.neutral  { color: var(--blue); }
+    .spread-val-block .val.negative { color: var(--red); }
+
+    .spread-signal {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .5rem 1rem;
+      border-radius: 8px;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+    .spread-signal.hot   { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .spread-signal.warm  { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+    .spread-signal.cold  { background: rgba(139,148,158,.1); color: var(--muted);  border: 1px solid var(--border); }
+
+    .spread-prices {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .spread-price-item { text-align: center; }
+    .spread-price-item .sp-lbl { font-size: .6rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
+    .spread-price-item .sp-val { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
     /* ── Historial proyecciones ── */
     .history-stats {
       display: grid;
@@ -380,6 +435,14 @@
         <div class="eur-footer">—</div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- SPREAD MEP vs MAYORISTA -->
+  <section>
+    <div class="section-title">Spread MEP vs. Mayorista — oportunidad de arbitraje</div>
+    <div class="spread-card skeleton" id="spreadCard">
+      <div style="color:var(--muted);font-size:.85rem;">Cargando datos MEP...</div>
     </div>
   </section>
 
@@ -791,9 +854,10 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      const { usd, eur, stale } = json.data;
+      const { usd, eur, mep, spreadMepMayorista, stale } = json.data;
       if (usd) renderUSD(usd, stale);
       if (eur) renderEUR(eur);
+      renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
       // Guardar punto en localStorage y actualizar gráfico
       if (usd?.venta && isTradingHours()) {
         lsAddPoint(usd.venta, usd.compra);
@@ -860,6 +924,84 @@
         document.getElementById('newsGrid').innerHTML =
           `<div class="empty-state">No se pudieron cargar las noticias. Reintentando...</div>`;
     }
+  }
+
+  // ── Spread MEP vs Mayorista ──
+  function renderSpread(mep, usd, spreadData) {
+    const card = document.getElementById('spreadCard');
+    card.classList.remove('skeleton');
+
+    if (!mep || !usd || spreadData.montoARS === null) {
+      card.innerHTML = `<div style="color:var(--muted);font-size:.85rem;">Sin datos MEP disponibles en este momento.</div>`;
+      return;
+    }
+
+    const monto = spreadData.montoARS;
+    const pct   = spreadData.pct;
+
+    // Semáforo: >2% muy interesante, 0.5%-2% moderado, <0.5% sin diferencia significativa
+    let signalClass, signalIcon, signalText;
+    if (pct >= 2) {
+      signalClass = 'hot';
+      signalIcon  = '🟢';
+      signalText  = 'Diferencia alta — operación puede ser conveniente';
+    } else if (pct >= 0.5) {
+      signalClass = 'warm';
+      signalIcon  = '🟡';
+      signalText  = 'Diferencia moderada — evaluar costos de transacción';
+    } else if (pct >= 0) {
+      signalClass = 'cold';
+      signalIcon  = '⚪';
+      signalText  = 'Diferencia mínima — no justifica la operación';
+    } else {
+      signalClass = 'cold';
+      signalIcon  = '🔴';
+      signalText  = 'MEP por debajo del mayorista';
+    }
+
+    const fmt = v => v != null ? '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+
+    card.innerHTML = `
+      <div>
+        <div class="spread-title">Spread MEP — Mayorista (venta)</div>
+        <div class="spread-main">
+          <div class="spread-val-block">
+            <div class="label">Monto</div>
+            <div class="val ${pct >= 0.5 ? 'positive' : pct < 0 ? 'negative' : 'neutral'}">
+              ${monto >= 0 ? '+' : ''}${fmt(monto)}
+            </div>
+          </div>
+          <div class="spread-val-block">
+            <div class="label">Porcentaje</div>
+            <div class="val ${pct >= 0.5 ? 'positive' : pct < 0 ? 'negative' : 'neutral'}">
+              ${pct >= 0 ? '+' : ''}${pct?.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spread-prices">
+        <div class="spread-price-item">
+          <div class="sp-lbl">MEP venta</div>
+          <div class="sp-val">${fmt(mep.venta)}</div>
+        </div>
+        <div class="spread-price-item">
+          <div class="sp-lbl">Mayorista venta</div>
+          <div class="sp-val">${fmt(usd.venta)}</div>
+        </div>
+        <div class="spread-price-item">
+          <div class="sp-lbl">MEP compra</div>
+          <div class="sp-val">${fmt(mep.compra)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="spread-signal ${signalClass}">${signalIcon} ${signalText}</div>
+        <div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;">
+          Operación: vendés USD a precio MEP → obtenés ARS → comprás USD al tipo mayorista
+        </div>
+      </div>
+    `;
   }
 
   // ── Historial de proyecciones ──

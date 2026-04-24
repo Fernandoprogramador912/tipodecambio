@@ -23,10 +23,21 @@ async function fetchWithFallback(primaryUrl, fallbackUrl) {
 }
 
 async function fetchRates() {
-  const [mayorista, euro] = await Promise.all([
+  const [mayorista, euro, mep] = await Promise.all([
     fetchWithFallback(`${DOLAR_API_BASE}/dolares/mayorista`),
     fetchWithFallback(`${DOLAR_API_BASE}/cotizaciones/eur`),
+    fetchWithFallback(`${DOLAR_API_BASE}/dolares/bolsa`).catch(() => null), // MEP = "bolsa" en dolarapi
   ]);
+
+  // Spread MEP vs Mayorista (relevante para la operación venta MEP → compra mayorista)
+  const mepVenta        = mep?.venta   ?? null;
+  const mayoristaVenta  = mayorista.venta ?? null;
+  const spreadMonto     = mepVenta && mayoristaVenta
+    ? +(mepVenta - mayoristaVenta).toFixed(2)
+    : null;
+  const spreadPct       = spreadMonto && mayoristaVenta
+    ? +(spreadMonto / mayoristaVenta * 100).toFixed(2)
+    : null;
 
   return {
     usd: {
@@ -48,6 +59,17 @@ async function fetchRates() {
         : null,
       fechaActualizacion: euro.fechaActualizacion,
       fuente: 'DolarApi.com',
+    },
+    mep: mep ? {
+      nombre: 'MEP (Bolsa)',
+      compra: mep.compra,
+      venta: mep.venta,
+      fechaActualizacion: mep.fechaActualizacion,
+      fuente: 'DolarApi.com',
+    } : null,
+    spreadMepMayorista: {
+      montoARS: spreadMonto,
+      pct:      spreadPct,
     },
   };
 }
