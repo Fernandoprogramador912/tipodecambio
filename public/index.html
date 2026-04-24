@@ -616,7 +616,10 @@
       </div>
       <div class="usd-footer">
         <span>Actualizado: ${fmtDate(r.fechaActualizacion)}</span>
-        <span>${r.fuente}</span>
+        <span style="display:flex;gap:.5rem;align-items:center;">
+          ${r.variacion ? `<span style="font-size:.65rem;color:var(--muted);">Var. día: ${r.variacion}</span>` : ''}
+          ${r.valorCierreAnt ? `<span style="font-size:.65rem;color:var(--muted);">Cierre ant: $${fmt(r.valorCierreAnt)}</span>` : ''}
+        </span>
       </div>`;
   }
 
