@@ -9,16 +9,15 @@
  */
 
 const WebSocket = require('ws');
-const axios     = require('axios');
+const axios = require('axios');
+const { getWatchList, getActiveSpotSymbol, pickLastOperated } = require('./dlrUtils');
 
-const ENABLED   = process.env.ENABLE_FUTURES === 'true';
+const ENABLED = process.env.ENABLE_FUTURES === 'true';
 const HTTP_BASE = process.env.FUTURES_BASE_URL || 'https://api.remarkets.primary.com.ar';
 // WebSocket usa wss:// (seguro) cuando la base es https://
-const WS_URL    = HTTP_BASE.replace(/^https/, 'wss').replace(/^http(?!s)/, 'ws') + '/';
-const USER      = process.env.FUTURES_USER     || '';
-const PASS      = process.env.FUTURES_PASSWORD || '';
-
-const MONTH_ABBR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const WS_URL = HTTP_BASE.replace(/^https/, 'wss').replace(/^http(?!s)/, 'ws') + '/';
+const USER = process.env.FUTURES_USER || '';
+const PASS = process.env.FUTURES_PASSWORD || '';
 
 // ── Cache de precios: { symbol → { lastPrice, bid, ask, updatedAt } }
 const priceCache = new Map();
@@ -26,18 +25,6 @@ const priceCache = new Map();
 let ws           = null;
 let wsReady      = false;
 let reconnectTimer = null;
-
-// ── Calcular los N contratos DLR más próximos
-function nearestContracts(n = 3) {
-  const syms = [];
-  const d    = new Date();
-  for (let i = 0; i < n; i++) {
-    const ref  = new Date(d.getFullYear(), d.getMonth() + i, 1);
-    const sym  = `DLR/${MONTH_ABBR[ref.getMonth()]}${String(ref.getFullYear()).slice(-2)}`;
-    syms.push(sym);
-  }
-  return syms;
-}
 
 // ── Obtener cookie de sesión (auth para WebSocket — Spring Security)
 async function getCookie() {
@@ -59,7 +46,7 @@ function subscribe(symbols) {
   const msg = {
     type:     'smd',
     level:    1,
-    entries:  ['LA', 'BI', 'OF'],
+    entries:  ['LA', 'SE', 'BI', 'OF'],
     products: symbols.map(s => ({ symbol: s, marketId: 'ROFX' })),
     depth:    1,
   };
@@ -75,8 +62,8 @@ async function connect() {
   if (process.env.VERCEL) return;
 
   try {
-    const cookie  = await getCookie();
-    const symbols = nearestContracts(3);
+    const cookie = await getCookie();
+    const symbols = getWatchList();
 
     ws = new WebSocket(WS_URL, null, {
       headers: { Cookie: cookie },
@@ -98,10 +85,14 @@ async function connect() {
         const md     = msg.marketData;
         if (!symbol || !md) return;
 
+        const prev = priceCache.get(symbol);
+        const lastPrice = pickLastOperated(md) ?? prev?.lastPrice ?? null;
+        if (lastPrice == null && !md.BI && !md.OF) return;
+
         priceCache.set(symbol, {
-          lastPrice: md.LA?.price          ?? null,
-          bid:       md.BI?.[0]?.price     ?? null,
-          ask:       md.OF?.[0]?.price     ?? null,
+          lastPrice,
+          bid: md.BI?.[0]?.price ?? prev?.bid ?? null,
+          ask: md.OF?.[0]?.price ?? prev?.ask ?? null,
           updatedAt: Date.now(),
         });
       } catch { /* ignorar mensajes no parseables */ }
@@ -138,20 +129,20 @@ function scheduleReconnect(ms) {
 function isConnected() { return wsReady; }
 
 /**
- * Devuelve el precio más reciente del contrato más cercano desde el cache WS.
- * Retorna null si el WebSocket no está listo o el dato tiene más de 60s.
+ * Último (LA) del contrato DLR activo — mismo campo "Últ" que A3 futuros financieros.
  */
 function getLatestSpot() {
-  const symbols = nearestContracts(3);
-  for (const sym of symbols) {
-    const entry = priceCache.get(sym);
-    if (!entry) continue;
-    if (Date.now() - entry.updatedAt > 60_000) continue; // dato viejo
-    const price = entry.lastPrice ?? entry.bid ?? entry.ask;
-    if (!price) continue;
-    return { symbol: sym, price, bid: entry.bid, ask: entry.ask, fuente: 'Matba-Rofex WS' };
-  }
-  return null;
+  const sym = getActiveSpotSymbol();
+  const entry = priceCache.get(sym);
+  if (!entry || Date.now() - entry.updatedAt > 60_000) return null;
+  if (entry.lastPrice == null) return null;
+  return {
+    symbol: sym,
+    price: entry.lastPrice,
+    bid: entry.bid ?? null,
+    ask: entry.ask ?? null,
+    fuente: 'Matba-Rofex WS',
+  };
 }
 
 /**
@@ -171,4 +162,4 @@ function getAllCached() {
 // Iniciar conexión al cargar el módulo
 connect();
 
-module.exports = { isConnected, getLatestSpot, getCachedContract, getAllCached, nearestContracts };
+module.exports = { isConnected, getLatestSpot, getCachedContract, getAllCached };

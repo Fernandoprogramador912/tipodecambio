@@ -1,16 +1,26 @@
-const axios    = require('axios');
+const axios = require('axios');
 const wsProvider = require('./wsProvider');
+const a3MatrizWs = require('./a3MatrizWsProvider');
+const {
+  MONTH_ABBR,
+  nearestContracts,
+  getMayoristaSymbol,
+  getPinnedSpotSymbol,
+  getActiveSpotSymbol,
+  setActiveSpotSymbol,
+  sortDlrContracts,
+  pickLastOperated,
+} = require('./dlrUtils');
 
 const ENABLED = process.env.ENABLE_FUTURES === 'true';
 const BASE_URL = process.env.FUTURES_BASE_URL || 'https://api.remarkets.primary.com.ar';
 const FUTURES_USER = process.env.FUTURES_USER || '';
 const FUTURES_PASSWORD = process.env.FUTURES_PASSWORD || '';
 
-// Meses en español para construir los símbolos DLR/MMMYY
-const MONTH_ABBR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+// LA=último operado; SE solo informativo en grilla, no para tarjeta USD
+const MD_ENTRIES = 'LA,SE,BI,OF,OI';
 
-// Entradas de market data: LA=último, BI=bid, OF=offer, OI=interés abierto
-const MD_ENTRIES = 'LA,BI,OF,OI';
+const pickUltPrice = pickLastOperated;
 
 // Cache de token: se renueva si vence
 let authToken = null;
@@ -25,18 +35,19 @@ const FUTURES_CACHE_TTL_MS = 15 * 1000; // 15 segundos
 // Cache del spot de referencia (contrato más cercano, solo para USD card)
 let spotRefCache = null;
 let spotRefCachedAt = 0;
-const SPOT_REF_TTL_MS = 8 * 1000; // 8s — mismo ritmo que /api/fx
+const SPOT_REF_TTL_MS = 3 * 1000; // reconsultar LA/trades cada pocos segundos
+const TRADES_CACHE_TTL_MS = 3 * 1000;
 
-function getUpcomingContracts(count = 6) {
-  const contracts = [];
-  const now = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const abbr = MONTH_ABBR[d.getMonth()];
-    const yy = String(d.getFullYear()).slice(-2);
-    contracts.push(`DLR/${abbr}${yy}`);
-  }
-  return contracts;
+let spotSymbolResolvedAt = 0;
+/** @type {Map<string, { price: number, asOf: number, fetchedAt: number }>} */
+const lastTradeCache = new Map();
+const SPOT_SYMBOL_TTL_MS = 60 * 60 * 1000; // re-resolver contrato front mes cada 1h
+
+/** Últ del encabezado "Dólar USA" en A3 → DLR/SPOT (no el futuro DLR/MAY26). */
+async function resolveSpotSymbol() {
+  const sym = getMayoristaSymbol();
+  setActiveSpotSymbol(sym);
+  return sym;
 }
 
 async function authenticate() {
@@ -87,7 +98,7 @@ async function fetchContractData(token, symbol) {
     const md = res.data.marketData;
 
     // LA es un objeto directo, BI/OF son arrays de niveles de profundidad
-    const last = md.LA?.price ?? null;
+    const last = pickUltPrice(md);
     const bid  = Array.isArray(md.BI) && md.BI.length > 0 ? md.BI[0].price : null;
     const ask  = Array.isArray(md.OF) && md.OF.length > 0 ? md.OF[0].price : null;
     const oi   = md.OI?.size ?? null;
@@ -106,13 +117,14 @@ async function fetchAvailableContracts(token) {
     });
     const all = res.data?.instruments || [];
     // Solo futuros DLR simples ordenados por vencimiento implícito
-    const dlr = all
-      .filter(i => /^DLR\/[A-Z]{3}\d{2}$/.test(i.instrumentId?.symbol))
-      .map(i => i.instrumentId.symbol)
-      .sort();
-    return dlr.length > 0 ? dlr.slice(0, 8) : getUpcomingContracts(6);
+    const dlr = sortDlrContracts(
+      all
+        .filter(i => /^DLR\/[A-Z]{3}\d{2}$/.test(i.instrumentId?.symbol))
+        .map(i => i.instrumentId.symbol)
+    );
+    return dlr.length > 0 ? dlr.slice(0, 8) : nearestContracts(6);
   } catch {
-    return getUpcomingContracts(6);
+    return nearestContracts(6);
   }
 }
 
@@ -131,7 +143,7 @@ async function getFutures() {
   if (!ENABLED) {
     return {
       enabled: false,
-      contracts: getUpcomingContracts(6).map(symbol => ({
+      contracts: nearestContracts(6).map(symbol => ({
         symbol, lastPrice: null, bid: null, ask: null,
         note: 'Activar con ENABLE_FUTURES=true en .env',
         stub: true,
@@ -166,46 +178,43 @@ async function getFutures() {
 }
 
 /**
- * Devuelve el precio del contrato DLR más próximo.
- * Prioridad: WebSocket cache (tick a tick) → REST (polling cada 8s)
+ * Últ del encabezado Dólar USA en A3 (DLR/SPOT vía WebSocket Matriz).
+ * Primary REST solo complementa bid/ask si hay sesión.
  */
 async function getSpotRef() {
   if (!ENABLED) return null;
 
-  // 1. Intentar WebSocket cache (dato en tiempo real)
-  const wsSpot = wsProvider.getLatestSpot();
-  if (wsSpot) return wsSpot;
-
-  // 2. Fallback REST con cache
-  const now = Date.now();
-  if (spotRefCache && now - spotRefCachedAt < SPOT_REF_TTL_MS) {
-    return spotRefCache;
+  const live = a3MatrizWs.getDolarUsaUlt();
+  if (live?.price != null) {
+    spotRefCache = live;
+    spotRefCachedAt = Date.now();
+    return live;
   }
 
   try {
     const token = await authenticate();
+    const sym = await resolveSpotSymbol();
+    const data = await fetchContractData(token, sym);
 
-    const d = new Date();
-    for (let i = 0; i < 3; i++) {
-      const ref  = new Date(d.getFullYear(), d.getMonth() + i, 1);
-      const sym  = `DLR/${MONTH_ABBR[ref.getMonth()]}${String(ref.getFullYear()).slice(-2)}`;
-      const data = await fetchContractData(token, sym);
-      const price = data.lastPrice ?? data.bid ?? data.ask;
-      if (price) {
-        const result = {
-          symbol: sym,
-          price,
-          bid:    data.bid  ?? null,
-          ask:    data.ask  ?? null,
-          fuente: 'Matba-Rofex',
-        };
-        spotRefCache    = result;
-        spotRefCachedAt = now;
-        return result;
-      }
+    if (data.lastPrice == null && data.bid == null && data.ask == null) {
+      return spotRefCache?.symbol === sym ? spotRefCache : null;
     }
-    return null;
-  } catch {
+
+    const result = {
+      symbol: sym,
+      price: data.lastPrice,
+      bid: data.bid ?? null,
+      ask: data.ask ?? null,
+      asOf: new Date().toISOString(),
+      fuente: 'Matba-Rofex',
+    };
+    if (result.price != null) {
+      spotRefCache = result;
+      spotRefCachedAt = Date.now();
+    }
+    return result.price != null ? result : spotRefCache;
+  } catch (err) {
+    console.warn('[getSpotRef]', err.message);
     return spotRefCache ?? null;
   }
 }

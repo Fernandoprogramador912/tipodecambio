@@ -1,27 +1,31 @@
 const Parser = require('rss-parser');
-const { filterAndRank } = require('./relevanceService');
+const { filterAndRank, scoreItems } = require('./relevanceService');
+const { dedupeByLink, dedupeSimilar } = require('./newsDedupService');
+const { fetchIprofesionalNews } = require('../providers/iprofesionalProvider');
+const { fetchCronistaNews } = require('../providers/cronistaProvider');
 
 const parser = new Parser({
   timeout: 8000,
   headers: { 'User-Agent': 'DashboardTC/1.0 (news aggregator)' },
-  customFields: {
-    item: ['media:content', 'content:encoded', 'description'],
-  },
 });
 
-// Feeds RSS de economía y finanzas argentina
+function stripHtml(html) {
+  return String(html || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const RSS_FEEDS = [
   { url: 'https://www.infobae.com/feeds/rss/economia/', source: 'Infobae Economía' },
   { url: 'https://eleconomista.com.ar/economia/feed/', source: 'El Economista' },
   { url: 'https://eleconomista.com.ar/finanzas/feed/', source: 'El Economista Finanzas' },
   { url: 'https://www.ambito.com/rss/pages/economia.xml', source: 'Ámbito Financiero' },
   { url: 'https://www.ambito.com/rss/pages/finanzas.xml', source: 'Ámbito Finanzas' },
-  { url: 'https://www.cronista.com/arc/outboundfeeds/rss/category/finanzas-y-mercados/', source: 'El Cronista' },
-  { url: 'https://www.iprofesional.com/rss/finanzas.xml', source: 'iProfesional' },
   { url: 'https://www.lanacion.com.ar/economia/feed/', source: 'La Nación Economía' },
 ];
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cache = {
   data: null,
@@ -33,33 +37,30 @@ async function fetchFeed(feed) {
     const parsed = await parser.parseURL(feed.url);
     return parsed.items.map(item => ({
       title: item.title || '',
-      summary: item.contentSnippet || item.description || item.summary || '',
+      summary: stripHtml(item.contentSnippet || item.description || item.summary || ''),
       link: item.link || item.guid || '',
       pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
       source: feed.source,
     }));
   } catch {
-    // Feed inaccesible — se ignora silenciosamente
     return [];
   }
 }
 
 async function fetchAllNews() {
-  const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchFeed(f)));
+  const [rssResults, iProItems, cronistaItems] = await Promise.all([
+    Promise.allSettled(RSS_FEEDS.map(f => fetchFeed(f))),
+    fetchIprofesionalNews(),
+    fetchCronistaNews(),
+  ]);
 
-  const allItems = results.flatMap(r =>
-    r.status === 'fulfilled' ? r.value : []
-  );
+  const rssItems = rssResults.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+  const allItems = [...rssItems, ...iProItems, ...cronistaItems].filter(item => item.link && item.title);
 
-  // Deduplicar por link
-  const seen = new Set();
-  const unique = allItems.filter(item => {
-    if (!item.link || seen.has(item.link)) return false;
-    seen.add(item.link);
-    return true;
-  });
-
-  return filterAndRank(unique, { minScore: 1, limit: 30 });
+  const linked = dedupeByLink(allItems);
+  const scored = scoreItems(linked);
+  const deduped = dedupeSimilar(scored);
+  return filterAndRank(deduped, { minScore: 1, limit: 30 });
 }
 
 async function getNews() {

@@ -4,11 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard TC Argentina</title>
+  <script>
+    (function () {
+      const t = localStorage.getItem('tcAR_theme');
+      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    :root,
+    [data-theme="dark"] {
+      color-scheme: dark;
       --bg:        #0d1117;
       --surface:   #161b22;
       --surface2:  #1c2330;
@@ -20,12 +28,37 @@
       --yellow:    #d29922;
       --blue:      #58a6ff;
       --accent:    #1f6feb;
+      --row-hover: rgba(255, 255, 255, .02);
+      --chart-grid: rgba(48, 54, 61, .5);
       --radius:    12px;
       --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
     }
 
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg:        #f0f2f5;
+      --surface:   #ffffff;
+      --surface2:  #f6f8fa;
+      --border:    #d0d7de;
+      --text:      #1f2328;
+      --muted:     #656d76;
+      --green:     #1a7f37;
+      --red:       #cf222e;
+      --yellow:    #9a6700;
+      --blue:      #0969da;
+      --accent:    #0969da;
+      --row-hover: rgba(0, 0, 0, .03);
+      --chart-grid: rgba(208, 215, 222, .8);
+    }
+
     html { font-size: 16px; }
-    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background .2s, color .2s;
+    }
 
     /* ── Header ── */
     header {
@@ -45,7 +78,25 @@
     .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
     .logo span { color: var(--blue); }
     .badge { font-size: .7rem; font-weight: 600; background: var(--accent); color: #fff; padding: .15rem .5rem; border-radius: 20px; letter-spacing: .04em; text-transform: uppercase; }
-    .header-right { display: flex; align-items: center; gap: .75rem; font-size: .8rem; color: var(--muted); }
+    .header-right { display: flex; align-items: center; gap: .75rem; font-size: .8rem; color: var(--muted); flex-wrap: wrap; }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .65rem;
+      font-size: .72rem;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .theme-toggle:hover { border-color: var(--blue); }
+    .theme-toggle .theme-icon { font-size: .95rem; line-height: 1; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; animation: pulse 2s ease-in-out infinite; }
     .status-dot.error { background: var(--red); animation: none; }
     .status-dot.loading { background: var(--yellow); }
@@ -75,6 +126,43 @@
     @media (max-width: 1000px) { .fx-top-grid { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 600px)  { .fx-top-grid { grid-template-columns: 1fr; } }
 
+    /* ── Cruces internacionales vs USD ── */
+    .fx-global-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+    }
+    .fx-global-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: .35rem; margin-bottom: .75rem;
+    }
+    .fx-global-header .title {
+      font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted);
+    }
+    .fx-global-meta { font-size: .62rem; color: var(--muted); }
+    .fx-global-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: .55rem;
+    }
+    .fx-global-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .55rem .65rem;
+      display: flex; flex-direction: column; gap: .2rem;
+    }
+    .fx-global-pair { font-size: .62rem; margin-bottom: .1rem; }
+    .fx-global-pair .fx-flag-img { width: 1.1rem; height: .74rem; }
+    .fx-global-rate {
+      font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums;
+      color: var(--text); line-height: 1.1;
+    }
+    .fx-global-sub { font-size: .58rem; color: var(--muted); }
+    .fx-global-empty { font-size: .82rem; color: var(--muted); }
+
     /* ── Fila 2: Proyección + Gráfico ── */
     .proj-chart-grid {
       display: grid;
@@ -95,15 +183,27 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: .75rem; flex-wrap: wrap; gap: .4rem;
     }
+    .fx-pair-label {
+      display: inline-flex; align-items: center; gap: .45rem;
+      font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    }
+    .fx-flags { display: inline-flex; align-items: center; gap: .2rem; flex-shrink: 0; }
+    .fx-flag-img {
+      width: 1.35rem; height: .9rem; object-fit: cover; border-radius: 2px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.12);
+    }
+    [data-theme="light"] .fx-flag-img { box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
     .usd-card .card-label { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .usd-card .fx-pair-label { font-size: .68rem; }
     .usd-card .card-name { font-size: 1rem; font-weight: 700; color: var(--text); }
-    .usd-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .usd-values { margin-bottom: .25rem; }
     .usd-col { display: flex; flex-direction: column; gap: .25rem; }
     .usd-col .lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .usd-col .val { font-size: 1.8rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-    .val.buy  { color: var(--text); }
-    .val.sell { color: var(--text); }
-    .val.spread { color: var(--text); font-size: 1.4rem; }
+    .usd-col .val { font-size: 2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
+    .usd-cierre {
+      font-size: .82rem; color: var(--muted); margin-top: .35rem;
+    }
+    .usd-cierre strong { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
     .usd-footer {
       font-size: .65rem; color: var(--muted);
       display: flex; justify-content: space-between; align-items: center;
@@ -120,6 +220,8 @@
       padding: .85rem 1rem;
     }
     .eur-card .card-label { font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .2rem; }
+    .eur-card .fx-pair-label { font-size: .62rem; margin-bottom: .2rem; }
+    .eur-card .fx-flag-img { width: 1.15rem; height: .78rem; }
     .eur-card .card-name  { font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: .6rem; }
     .eur-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
     .eur-col { display: flex; flex-direction: column; gap: .15rem; }
@@ -178,16 +280,22 @@
       border-radius: 6px; padding: .4rem .8rem; margin-bottom: .5rem;
     }
 
-    /* ── Noticias ── */
-    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    /* ── Noticias (estilo diario) ── */
+    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
     .news-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 1rem 1.25rem;
-      display: flex; flex-direction: column; gap: .5rem;
-      transition: border-color .2s, transform .15s;
+      border-radius: var(--radius); padding: .85rem 1rem 1rem;
+      display: flex; flex-direction: column;
+      gap: .45rem;
+      transition: border-color .2s, transform .15s, box-shadow .15s;
       text-decoration: none; color: inherit;
     }
-    .news-card:hover { border-color: var(--blue); transform: translateY(-2px); }
+    .news-card:hover {
+      border-color: var(--blue);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    }
+    [data-theme="light"] .news-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .08); }
     .news-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
     .news-source { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--blue); }
     .news-date { font-size: .68rem; color: var(--muted); margin-left: auto; }
@@ -380,7 +488,7 @@
       vertical-align: middle;
     }
     .history-table tr:last-child td { border-bottom: none; }
-    .history-table tr:hover td { background: rgba(255,255,255,.02); }
+    .history-table tr:hover td { background: var(--row-hover); }
 
     .result-badge {
       display: inline-flex;
@@ -398,8 +506,6 @@
     .direction-cell { font-weight: 600; white-space: nowrap; }
 
     @media (max-width: 480px) {
-      .usd-values { grid-template-columns: 1fr 1fr; }
-      .usd-values .usd-col:last-child { display: none; }
       .news-grid { grid-template-columns: 1fr; }
       .proj-chart-grid { grid-template-columns: 1fr; }
     }
@@ -413,6 +519,10 @@
     <div class="badge">Live</div>
   </div>
   <div class="header-right">
+    <button type="button" class="theme-toggle" id="themeToggle" title="Cambiar tema" aria-label="Cambiar tema claro u oscuro">
+      <span class="theme-icon" id="themeIcon">☀️</span>
+      <span id="themeLabel">Claro</span>
+    </button>
     <span id="statusDot" class="status-dot loading"></span>
     <span id="statusText">Conectando...</span>
     <span id="lastUpdate"></span>
@@ -433,20 +543,19 @@
       <div class="usd-card skeleton" id="usdCard">
         <div class="card-header">
           <div>
-            <div class="card-label">🇺🇸 USD / ARS</div>
+            <div class="card-label fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/us.svg" width="22" height="15" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="22" height="15" alt=""></span><span>USD / ARS</span></div>
             <div class="card-name">Cargando...</div>
           </div>
         </div>
         <div class="usd-values">
-          <div class="usd-col"><span class="lbl">Compra</span><span class="val buy">—</span></div>
-          <div class="usd-col"><span class="lbl">Venta</span><span class="val sell">—</span></div>
-          <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">—</span></div>
+          <div class="usd-col"><span class="lbl">Último</span><span class="val">—</span></div>
         </div>
-        <div class="usd-footer"><span>—</span><span>—</span></div>
+        <div class="usd-cierre">—</div>
+        <div class="usd-footer"><span>—</span></div>
       </div>
 
       <div class="eur-card skeleton" id="eurCard">
-        <div class="card-label">🇪🇺 EUR / ARS</div>
+        <div class="card-label fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/eu.svg" width="22" height="15" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="22" height="15" alt=""></span><span>EUR / ARS</span></div>
         <div class="card-name">Cargando...</div>
         <div class="eur-values">
           <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">—</span></div>
@@ -460,6 +569,13 @@
         <div style="color:var(--muted);font-size:.82rem;">Cargando MEP...</div>
       </div>
 
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Mercado internacional · Cruces vs USD</div>
+    <div class="fx-global-card skeleton" id="fxGlobalCard">
+      <div class="fx-global-empty">Cargando cruces internacionales...</div>
     </div>
   </section>
 
@@ -492,13 +608,7 @@
     </div>
   </section>
 
-  <!-- FILA 3: Futuros -->
-  <section id="futuresSection">
-    <div class="section-title">Futuros dólar (Matba-Rofex)</div>
-    <div id="futuresContent"></div>
-  </section>
-
-  <!-- FILA 4: Historial compacto (tabla colapsable) -->
+  <!-- FILA 3: Historial compacto (tabla colapsable) -->
   <section>
     <div class="section-title">
       Historial de proyecciones — registro de aciertos
@@ -542,6 +652,48 @@
   const REFRESH_INTERVAL  = 10000;
   const NEWS_REFRESH_MS   = 5 * 60 * 1000;
   const CHART_REFRESH_MS  = 30 * 1000;
+  const THEME_KEY         = 'tcAR_theme';
+
+  function getTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function getChartTheme() {
+    return {
+      line:       cssVar('--blue'),
+      fill:       getTheme() === 'light' ? 'rgba(9, 105, 218, .08)' : 'rgba(88, 166, 255, .07)',
+      grid:       cssVar('--chart-grid'),
+      muted:      cssVar('--muted'),
+      text:       cssVar('--text'),
+      tooltipBg:  cssVar('--surface2'),
+      tooltipBorder: cssVar('--border'),
+    };
+  }
+
+  function updateThemeToggleUI() {
+    const light = getTheme() === 'light';
+    document.getElementById('themeIcon').textContent  = light ? '🌙' : '☀️';
+    document.getElementById('themeLabel').textContent = light ? 'Oscuro' : 'Claro';
+  }
+
+  function setTheme(theme) {
+    const next = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+    updateThemeToggleUI();
+    if (fxChart) buildChart(lsLoad());
+  }
+
+  function toggleTheme() {
+    setTheme(getTheme() === 'light' ? 'dark' : 'light');
+  }
+
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  updateThemeToggleUI();
 
   // Horario de rueda + media hora de gracia: 10:00–15:30 ART (UTC-3)
   function isTradingHours() {
@@ -589,6 +741,55 @@
     return `hace ${Math.floor(hs/24)}d`;
   }
 
+  function fxFlag(code, title) {
+    return `<img class="fx-flag-img" src="/flags/${code}.svg" width="22" height="15" alt="" title="${title}" loading="lazy" decoding="async">`;
+  }
+
+  function fxPairLabel(leftCode, leftTitle, rightCode, rightTitle, pairText) {
+    return `<span class="fx-flags" aria-hidden="true">${fxFlag(leftCode, leftTitle)}${fxFlag(rightCode, rightTitle)}</span><span>${pairText}</span>`;
+  }
+
+  const FX_LABEL_USD = fxPairLabel('us', 'Estados Unidos', 'ar', 'Argentina', 'USD / ARS');
+  const FX_LABEL_EUR = fxPairLabel('eu', 'Unión Europea', 'ar', 'Argentina', 'EUR / ARS');
+
+  function fmtFx(n, decimals) {
+    if (n == null) return '—';
+    return new Intl.NumberFormat('es-AR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(n);
+  }
+
+  function fxPairFlags(leftCode, rightCode) {
+    return `<span class="fx-flags" aria-hidden="true">${fxFlag(leftCode, '')}${fxFlag(rightCode, '')}</span>`;
+  }
+
+  function renderFxGlobal(data) {
+    const card = document.getElementById('fxGlobalCard');
+    if (!card) return;
+    card.classList.remove('skeleton');
+
+    if (!data?.pairs?.length) {
+      card.innerHTML = '<div class="fx-global-empty">No se pudieron cargar los cruces internacionales.</div>';
+      return;
+    }
+
+    const items = data.pairs.map(p => `
+      <div class="fx-global-item">
+        <div class="fx-pair-label fx-global-pair">${fxPairFlags(p.flags[0], p.flags[1])}<span>${escHtml(p.pair)}</span></div>
+        <div class="fx-global-rate">${fmtFx(p.rate, p.decimals)}</div>
+        <div class="fx-global-sub">${escHtml(p.subtitle)}</div>
+      </div>`).join('');
+
+    const staleNote = data.stale ? ' · datos en caché' : '';
+    card.innerHTML = `
+      <div class="fx-global-header">
+        <span class="title">Referencia USD · tipos de mercado</span>
+        <span class="fx-global-meta">${escHtml(data.fuente || '')} · ${escHtml(data.fecha || '')}${staleNote}</span>
+      </div>
+      <div class="fx-global-grid">${items}</div>`;
+  }
+
   // ── Status ──
   function setStatus(state, text) {
     const dot = document.getElementById('statusDot');
@@ -598,57 +799,45 @@
   }
 
   // ── Render USD (card grande) ──
-  function renderUSD(r, rofex, stale) {
+  function isMayoristaStale(iso) {
+    if (!iso) return true;
+    const t = new Date(iso).getTime();
+    return Number.isNaN(t) || Date.now() - t > 90 * 1000;
+  }
+
+  function fmtCierreDate(ymd) {
+    if (!ymd) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+      const [yy, mm, dd] = ymd.split('-');
+      return `${dd}/${mm}/${yy}`;
+    }
+    const dt = new Date(ymd);
+    if (!isNaN(dt)) return dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return ymd;
+  }
+
+  function renderUSD(r, stale) {
     const card = document.getElementById('usdCard');
     card.classList.remove('skeleton');
-
-    // Bloque Rofex spot (si disponible)
-    const rofexBlock = rofex ? (() => {
-      const hasBidAsk = rofex.bid != null && rofex.ask != null;
-      const bidAskStr = hasBidAsk
-        ? `<span style="font-size:.62rem;color:var(--muted);margin-left:.75rem;">
-             Bid <b style="color:var(--text)">$${fmt(rofex.bid)}</b>
-             &nbsp;·&nbsp;
-             Ask <b style="color:var(--text)">$${fmt(rofex.ask)}</b>
-           </span>`
-        : '';
-      return `
-      <div style="
-        display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.3rem;
-        background:var(--surface2); border:1px solid var(--border);
-        border-radius:6px; padding:.35rem .75rem; margin-bottom:.6rem;
-      ">
-        <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">
-          Rofex · ${rofex.symbol}${rofex.fuente?.includes('WS') ? ' <span style="color:var(--green);font-size:.55rem;">● WS</span>' : ''}
-        </span>
-        <span style="display:flex;align-items:center;gap:.25rem;">
-          <span style="font-size:.6rem;color:var(--muted);">Últ</span>
-          <span style="font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;">$${fmt(rofex.price)}</span>
-          ${bidAskStr}
-        </span>
-      </div>`;
-    })() : '';
+    const mayoristaStale = stale || isMayoristaStale(r.fechaActualizacion);
+    const cierreLine = r.cierreValor != null
+      ? `Cierre ${fmtCierreDate(r.cierreFecha) || '—'}: <strong>$${fmt(r.cierreValor)}</strong>`
+      : '';
 
     card.innerHTML = `
       <div class="card-header">
         <div>
-          <div class="card-label">🇺🇸 USD / ARS</div>
+          <div class="card-label fx-pair-label">${FX_LABEL_USD}</div>
           <div class="card-name">${r.nombre}</div>
         </div>
-        ${stale ? '<span class="stale-badge">Dato desactualizado</span>' : ''}
+        ${mayoristaStale ? '<span class="stale-badge">Cotización desactualizada</span>' : ''}
       </div>
-      ${rofexBlock}
       <div class="usd-values">
-        <div class="usd-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
-        <div class="usd-col"><span class="lbl">Venta</span><span class="val sell">$${fmt(r.venta)}</span></div>
-        <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
+        <div class="usd-col"><span class="lbl">Último</span><span class="val">$${fmt(r.venta)}</span></div>
       </div>
+      ${cierreLine ? `<div class="usd-cierre">${cierreLine}</div>` : ''}
       <div class="usd-footer">
         <span>${r.fuente || 'Fuente'}: ${fmtDate(r.fechaActualizacion)}</span>
-        <span style="display:flex;gap:.5rem;align-items:center;">
-          ${r.variacion ? `<span style="font-size:.65rem;color:var(--muted);">Var: ${r.variacion}</span>` : ''}
-          ${r.valorCierreAnt ? `<span style="font-size:.65rem;color:var(--muted);">Ant: $${fmt(r.valorCierreAnt)}</span>` : ''}
-        </span>
       </div>`;
   }
 
@@ -657,7 +846,7 @@
     const card = document.getElementById('eurCard');
     card.classList.remove('skeleton');
     card.innerHTML = `
-      <div class="card-label">🇪🇺 EUR / ARS</div>
+      <div class="card-label fx-pair-label">${FX_LABEL_EUR}</div>
       <div class="card-name">${r.nombre}</div>
       <div class="eur-values">
         <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
@@ -705,48 +894,12 @@
       <div class="proj-disclaimer">⚠️ ${p.disclaimer}</div>`;
   }
 
-  // ── Render Futuros ──
-  function renderFutures(data) {
-    const content = document.getElementById('futuresContent');
-    const sectionTitle = document.querySelector('#futuresSection .section-title');
-
-    if (!data.enabled) {
-      sectionTitle.style.opacity = '.5';
-      content.innerHTML = `<p style="font-size:.8rem;color:var(--muted);">Módulo desactivado — configurar credenciales en .env</p>`;
-      return;
-    }
-
-    sectionTitle.style.opacity = '1';
-
-    const MONTH_ORDER = { ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,OCT:10,NOV:11,DIC:12 };
-    function contractSortKey(c) {
-      const m = c.symbol?.match(/([A-Z]{3})(\d{2})$/);
-      if (!m) return 99999;
-      return parseInt(m[2], 10) * 100 + (MONTH_ORDER[m[1]] || 99);
-    }
-
-    const contracts = (data.contracts || []).slice().sort((a, b) => contractSortKey(a) - contractSortKey(b));
-    const hasData = contracts.some(c => c.lastPrice != null);
-    const offlineNotice = !hasData
-      ? `<div class="futures-offline">Rueda cerrada — los futuros operan de lunes a viernes de 10:00 a 15:00 hs. Se muestran los últimos precios disponibles.</div>`
-      : '';
-
-    content.innerHTML = offlineNotice + `
-      <div class="futures-grid">
-        ${contracts.map(c => {
-          const hasPrice = c.lastPrice != null;
-          const bidAsk = (c.bid != null || c.ask != null)
-            ? `<div class="futures-bid-ask"><span class="f-bid">B $${fmt(c.bid)}</span><span class="f-sep">/</span><span class="f-ask">A $${fmt(c.ask)}</span></div>`
-            : '';
-          const oi = c.openInterest != null ? `<div class="f-oi">OI: ${c.openInterest.toLocaleString('es-AR')}</div>` : '';
-          return `<div class="futures-card${c.stub ? ' stub' : ''}">
-            <div class="f-symbol">${c.symbol}</div>
-            <div class="f-last${hasPrice ? '' : ' no-data'}">${hasPrice ? '$' + fmt(c.lastPrice) : '—'}</div>
-            ${bidAsk}${oi}
-            ${c.error && !hasPrice ? `<div class="f-error">${c.error}</div>` : ''}
-          </div>`;
-        }).join('')}
-      </div>`;
+  function escHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   // ── Render Noticias ──
@@ -758,14 +911,14 @@
     }
     const labels = { muy_alto:'Impacto muy alto', alto:'Impacto alto', medio:'Impacto medio', bajo:'Impacto bajo' };
     grid.innerHTML = items.map(item => `
-      <a class="news-card" href="${item.link}" target="_blank" rel="noopener noreferrer">
+      <a class="news-card" href="${escHtml(item.link)}" target="_blank" rel="noopener noreferrer">
         <div class="news-meta">
-          <span class="news-source">${item.source}</span>
+          <span class="news-source">${escHtml(item.source)}</span>
           <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
           <span class="news-date">${relativeTime(item.pubDate)}</span>
         </div>
-        <div class="news-title">${item.title}</div>
-        ${item.summary ? `<div class="news-summary">${item.summary}</div>` : ''}
+        <div class="news-title">${escHtml(item.title)}</div>
+        ${item.summary ? `<div class="news-summary">${escHtml(item.summary)}</div>` : ''}
       </a>`).join('');
   }
 
@@ -832,19 +985,20 @@
     const maxVal  = Math.max(...allVals);
     const padding = Math.max((maxVal - minVal) * 0.2, 2);
 
+    const th = getChartTheme();
     const chartData = {
       labels: slots,
       datasets: [{
         label: 'Venta USD/ARS',
         data: values,
-        borderColor: '#58a6ff',
-        backgroundColor: 'rgba(88,166,255,.07)',
+        borderColor: th.line,
+        backgroundColor: th.fill,
         borderWidth: 2.5,
         pointRadius: 0,
         pointHoverRadius: 5,
         fill: true,
         tension: 0.3,
-        spanGaps: true,  // conecta los puntos aunque haya nulls
+        spanGaps: true,
       }],
     };
 
@@ -853,13 +1007,13 @@
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: th.muted, font: { size: 11 }, boxWidth: 12 } },
         tooltip: {
-          backgroundColor: '#1c2330',
-          borderColor: '#30363d',
+          backgroundColor: th.tooltipBg,
+          borderColor: th.tooltipBorder,
           borderWidth: 1,
-          titleColor: '#e6edf3',
-          bodyColor: '#8b949e',
+          titleColor: th.text,
+          bodyColor: th.muted,
           callbacks: {
             label: ctx => ctx.parsed.y != null
               ? ` $${ctx.parsed.y.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
@@ -870,31 +1024,29 @@
       scales: {
         x: {
           ticks: {
-            color: '#8b949e',
+            color: th.muted,
             font: { size: 11 },
             maxRotation: 0,
-            // Mostrar solo cada hora: 10:00, 11:00, ..., 15:00
             callback: (val, idx) => slots[idx].endsWith(':00') ? slots[idx] : '',
           },
-          grid: { color: 'rgba(48,54,61,.5)' },
+          grid: { color: th.grid },
         },
         y: {
           min: minVal - padding,
           max: maxVal + padding,
           ticks: {
-            color: '#8b949e',
+            color: th.muted,
             font: { size: 11 },
             callback: v => '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 0 }),
           },
-          grid: { color: 'rgba(48,54,61,.5)' },
+          grid: { color: th.grid },
         }
       }
     };
 
     if (fxChart) {
       fxChart.data = chartData;
-      fxChart.options.scales.y.min = minVal - padding;
-      fxChart.options.scales.y.max = maxVal + padding;
+      fxChart.options = options;
       fxChart.update('none');
     } else {
       fxChart = new Chart(document.getElementById('fxChart').getContext('2d'), { type: 'line', data: chartData, options });
@@ -911,13 +1063,14 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      const { usd, eur, mep, rofexSpot, spreadMepMayorista, stale } = json.data;
-      if (usd) renderUSD(usd, rofexSpot, stale);
+      const { usd, eur, mep, spreadMepMayorista, forexGlobal, stale } = json.data;
+      if (usd) renderUSD(usd, stale);
       if (eur) renderEUR(eur);
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
+      if (forexGlobal) renderFxGlobal(forexGlobal);
       // Guardar punto en localStorage y actualizar gráfico
       if (usd?.venta && isTradingHours()) {
-        lsAddPoint(usd.venta, usd.compra);
+        lsAddPoint(usd.venta);
         fetchHistory();
       }
       // Registrar precio de cierre si estamos en ventana 15:00–15:30
@@ -956,9 +1109,9 @@
     } catch {}
   }
 
-  function lsAddPoint(venta, compra) {
+  function lsAddPoint(venta) {
     const points = lsLoad();
-    points.push({ ts: new Date().toISOString(), venta, compra });
+    points.push({ ts: new Date().toISOString(), venta, compra: venta });
     lsSave(points);
     return points;
   }
@@ -1181,20 +1334,9 @@
     } catch {}
   }
 
-  // ── Fetch Futuros ──
-  async function fetchFutures() {
-    try {
-      const res = await fetch('/api/futures');
-      const json = await res.json();
-      renderFutures(json.data || { enabled: false, contracts: [] });
-    } catch {
-      renderFutures({ enabled: false, contracts: [] });
-    }
-  }
-
   // ── Init & loops ──
   async function init() {
-    await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchHistory(), fetchProjection()]);
+    await Promise.all([fetchFX(), fetchNews(), fetchHistory(), fetchProjection()]);
     // Cargar historial de proyecciones siempre (independiente del horario)
     fetchProjectionHistory();
     // Guardar proyección del día si estamos en rueda
@@ -1212,7 +1354,6 @@
     setInterval(() => {
       if (!isTradingHours()) return;
       fetchFX();
-      fetchFutures();
       fetchHistory();
       startProgressBar(REFRESH_INTERVAL);
     }, REFRESH_INTERVAL);

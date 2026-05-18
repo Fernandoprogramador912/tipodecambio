@@ -8,7 +8,7 @@ const HIGH_IMPACT_KEYWORDS = [
   'devaluacion', 'devaluación', 'tipo de cambio', 'cepo',
   'crawling peg', 'banda cambiaria', 'flotación', 'flotacion',
   'fmi', 'fondo monetario', 'acuerdo fmi', 'desembolso',
-  'dolar', 'dólar', 'mayorista', 'blue', 'ccl', 'mep',
+  'dolar', 'dólar', 'mayorista', 'ccl', 'mep',
   'bonos soberanos', 'riesgo país', 'riesgo pais',
   'inflacion', 'inflación', 'ipc', 'indec',
   'tasa de interes', 'tasa de interés', 'política monetaria',
@@ -20,6 +20,19 @@ const HIGH_IMPACT_KEYWORDS = [
   'economía argentina', 'economia argentina',
   'milei', 'caputo', 'secretaria hacienda', 'ministerio economia',
 ];
+
+const BLUE_DOLLAR_PATTERNS = [
+  /d[oó]lar\s+blue/i,
+  /blue\s+(del\s+)?d[oó]lar/i,
+  /tipo\s+blue/i,
+  /d[oó]lar\s+informal/i,
+  /cotizaci[oó]n\s+blue/i,
+];
+
+function isBlueDollarNews(item) {
+  const text = `${item.title || ''} ${item.summary || ''}`;
+  return BLUE_DOLLAR_PATTERNS.some(p => p.test(text));
+}
 
 const MEDIUM_IMPACT_KEYWORDS = [
   'mercados', 'bolsa', 'finanzas', 'economia', 'economía',
@@ -61,14 +74,26 @@ function getImpactLabel(score) {
  * @param {number} opts.limit - Cantidad máxima a devolver (default 20)
  * @returns {Array}
  */
+const PRIORITY_SOURCE_BOOST = 3;
+
+function scoreItem(item) {
+  let score = scoreText(item.title) + scoreText(item.summary);
+  const src = item.source || '';
+  if (/iprofesional/i.test(src) || src === 'El Cronista') {
+    score += PRIORITY_SOURCE_BOOST;
+  }
+  return { ...item, score, impact: getImpactLabel(score) };
+}
+
+function scoreItems(items) {
+  return items.map(scoreItem);
+}
+
 function filterAndRank(items, { minScore = 1, limit = 20 } = {}) {
-  const scored = items.map(item => {
-    const score = scoreText(item.title) + scoreText(item.summary);
-    return { ...item, score, impact: getImpactLabel(score) };
-  });
+  const scored = items.some(i => i.score != null) ? items : scoreItems(items);
 
   return scored
-    .filter(i => i.score >= minScore)
+    .filter(i => i.score >= minScore && !isBlueDollarNews(i))
     .sort((a, b) => {
       // Primero por impacto, luego por fecha
       if (b.score !== a.score) return b.score - a.score;
@@ -77,4 +102,4 @@ function filterAndRank(items, { minScore = 1, limit = 20 } = {}) {
     .slice(0, limit);
 }
 
-module.exports = { filterAndRank };
+module.exports = { filterAndRank, scoreItems, scoreItem };

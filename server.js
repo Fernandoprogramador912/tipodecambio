@@ -8,7 +8,7 @@ const { getRates }           = require('./src/services/exchangeService');
 const { getNews }            = require('./src/services/newsService');
 const { calculateProjection }                         = require('./src/services/projectionService');
 const { saveProjection, recordClose, getHistory } = require('./src/services/projectionHistoryService');
-const { getFutures, getSpotRef, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
+const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -19,15 +19,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- API: tipos de cambio ---
 app.get('/api/fx', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const [rates, rofex] = await Promise.all([
-      getRates(),
-      getSpotRef().catch(() => null),   // precio Rofex contrato más cercano
-    ]);
-
+    const rates = await getRates();
     res.json({
       ok: true,
-      data: { ...rates, rofexSpot: rofex },
+      data: rates,
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -121,7 +118,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`\n  Dashboard TC + Noticias\n`);
     console.log(`  Local: http://localhost:${PORT}`);
-    console.log(`  Futuros: ${FUTURES_ENABLED ? 'ACTIVO' : 'desactivado (fase 2)'}\n`);
+    console.log(`  USD (UI mayorista): ${FUTURES_ENABLED ? 'A3/Primary futuro DLR' : 'fallback Ámbito'}\n`);
   });
 }
 
