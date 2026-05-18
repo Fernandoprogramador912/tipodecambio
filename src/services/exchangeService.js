@@ -28,27 +28,11 @@ function parseAmbitoDate(str) {
 }
 
 async function fetchMayorista() {
-  // Fuente primaria: Ambito (actualiza intradiario durante la rueda)
+  // Fuente primaria: DolarApi.com
   try {
-    const res = await axios.get(`${AMBITO_BASE}/dolar/mayorista/variacion`, { timeout: 5000 });
-    const d   = res.data;
-    const compra = parseAmbito(d.compra);
-    const venta  = parseAmbito(d.venta);
-    if (!compra || !venta) throw new Error('Datos Ambito inválidos');
-    return {
-      nombre: 'Mayorista',
-      compra,
-      venta,
-      spread:             venta && compra ? +(venta - compra).toFixed(4) : null,
-      variacion:          d.variacion || null,
-      valorCierreAnt:     parseAmbito(d.valor_cierre_ant),
-      fechaActualizacion: parseAmbitoDate(d.fecha),
-      fuente: 'Ambito.com',
-    };
-  } catch {
-    // Fallback: DolarApi.com
     const res = await axios.get(`${DOLAR_API_BASE}/dolares/mayorista`, { timeout: 5000 });
     const d   = res.data;
+    if (!d.compra || !d.venta) throw new Error('Datos DolarApi inválidos');
     return {
       nombre:             d.nombre || 'Mayorista',
       compra:             d.compra,
@@ -58,6 +42,22 @@ async function fetchMayorista() {
       valorCierreAnt:     null,
       fechaActualizacion: d.fechaActualizacion,
       fuente: 'DolarApi.com',
+    };
+  } catch {
+    // Fallback: Ambito
+    const res = await axios.get(`${AMBITO_BASE}/dolar/mayorista/variacion`, { timeout: 5000 });
+    const d   = res.data;
+    const compra = parseAmbito(d.compra);
+    const venta  = parseAmbito(d.venta);
+    return {
+      nombre: 'Mayorista',
+      compra,
+      venta,
+      spread:             venta && compra ? +(venta - compra).toFixed(4) : null,
+      variacion:          d.variacion || null,
+      valorCierreAnt:     parseAmbito(d.valor_cierre_ant),
+      fechaActualizacion: parseAmbitoDate(d.fecha),
+      fuente: 'Ambito.com',
     };
   }
 }

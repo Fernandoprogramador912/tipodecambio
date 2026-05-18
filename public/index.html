@@ -644,7 +644,7 @@
         <div class="usd-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
       </div>
       <div class="usd-footer">
-        <span>Ambito: ${fmtDate(r.fechaActualizacion)}</span>
+        <span>${r.fuente || 'Fuente'}: ${fmtDate(r.fechaActualizacion)}</span>
         <span style="display:flex;gap:.5rem;align-items:center;">
           ${r.variacion ? `<span style="font-size:.65rem;color:var(--muted);">Var: ${r.variacion}</span>` : ''}
           ${r.valorCierreAnt ? `<span style="font-size:.65rem;color:var(--muted);">Ant: $${fmt(r.valorCierreAnt)}</span>` : ''}
