@@ -809,11 +809,13 @@
     }).join('');
 
     const staleNote = data.stale ? ' · datos en caché' : '';
-    const cierreRef = data.cierreReferencia ? ` · cierre ant. ${data.cierreReferencia}` : '';
+    const cierreRef = data.cierreReferencia
+      ? ` · vs ${escHtml(String(data.cierreReferencia))}`
+      : '';
     card.innerHTML = `
       <div class="fx-global-header">
-        <span class="title">Referencia USD · variación vs cierre BCE</span>
-        <span class="fx-global-meta">${escHtml(data.fuente || '')} · ${escHtml(data.fecha || '')}${cierreRef}${staleNote}</span>
+        <span class="title">Mercado FX internacional · tiempo real</span>
+        <span class="fx-global-meta">${escHtml(data.fuente || '')}${data.fechaActualizacion ? ` · Act. ${fmtDate(data.fechaActualizacion)}` : ''}${cierreRef}${staleNote}</span>
       </div>
       <div class="fx-global-grid">${items}</div>`;
   }

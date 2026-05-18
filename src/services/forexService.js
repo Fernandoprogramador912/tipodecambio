@@ -1,19 +1,19 @@
 const axios = require('axios');
 
-/** Tipos de cambio vs USD (Frankfurter / BCE). Sin API key. */
 const FRANKFURTER_BASE = 'https://api.frankfurter.app';
-const CACHE_TTL_MS = 10 * 60 * 1000;
+const YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
+const CACHE_TTL_MS = 30 * 1000;
 
 const CURRENCIES = ['EUR', 'BRL', 'GBP', 'JPY', 'CHF', 'CNY', 'MXN'];
 
 const PAIR_DEFS = [
-  { pair: 'EUR/USD', flags: ['eu', 'us'], left: 'Euro', right: 'USD', currency: 'EUR', kind: 'usdPerUnit' },
-  { pair: 'USD/BRL', flags: ['us', 'br'], left: 'USD', right: 'Real', currency: 'BRL', kind: 'unitsPerUsd' },
-  { pair: 'GBP/USD', flags: ['gb', 'us'], left: 'Libra', right: 'USD', currency: 'GBP', kind: 'usdPerUnit' },
-  { pair: 'USD/JPY', flags: ['us', 'jp'], left: 'USD', right: 'Yen', currency: 'JPY', kind: 'unitsPerUsd' },
-  { pair: 'USD/CNY', flags: ['us', 'cn'], left: 'USD', right: 'Yuan', currency: 'CNY', kind: 'unitsPerUsd' },
-  { pair: 'USD/CHF', flags: ['us', 'ch'], left: 'USD', right: 'Franco', currency: 'CHF', kind: 'unitsPerUsd' },
-  { pair: 'USD/MXN', flags: ['us', 'mx'], left: 'USD', right: 'Peso MX', currency: 'MXN', kind: 'unitsPerUsd' },
+  { pair: 'EUR/USD', flags: ['eu', 'us'], left: 'Euro', right: 'USD', currency: 'EUR', kind: 'usdPerUnit', yahoo: 'EURUSD=X' },
+  { pair: 'USD/BRL', flags: ['us', 'br'], left: 'USD', right: 'Real', currency: 'BRL', kind: 'unitsPerUsd', yahoo: 'USDBRL=X' },
+  { pair: 'GBP/USD', flags: ['gb', 'us'], left: 'Libra', right: 'USD', currency: 'GBP', kind: 'usdPerUnit', yahoo: 'GBPUSD=X' },
+  { pair: 'USD/JPY', flags: ['us', 'jp'], left: 'USD', right: 'Yen', currency: 'JPY', kind: 'unitsPerUsd', yahoo: 'USDJPY=X' },
+  { pair: 'USD/CNY', flags: ['us', 'cn'], left: 'USD', right: 'Yuan', currency: 'CNY', kind: 'unitsPerUsd', yahoo: 'USDCNY=X' },
+  { pair: 'USD/CHF', flags: ['us', 'ch'], left: 'USD', right: 'Franco', currency: 'CHF', kind: 'unitsPerUsd', yahoo: 'USDCHF=X' },
+  { pair: 'USD/MXN', flags: ['us', 'mx'], left: 'USD', right: 'Peso MX', currency: 'MXN', kind: 'unitsPerUsd', yahoo: 'USDMXN=X' },
 ];
 
 let cache = { data: null, fetchedAt: 0 };
@@ -28,18 +28,6 @@ function pairDecimals(def) {
   return def.kind === 'unitsPerUsd' && def.currency === 'JPY' ? 2 : 4;
 }
 
-/** Convierte cotización Frankfurter (unidades de `currency` por 1 USD) al par mostrado. */
-function rateFromUsdQuote(def, usdRates) {
-  const raw = usdRates?.[def.currency];
-  if (raw == null || raw <= 0) return null;
-  return def.kind === 'usdPerUnit' ? 1 / raw : raw;
-}
-
-/**
- * Movimiento de la moneda extranjera vs USD respecto al cierre anterior.
- * usdPerUnit: sube el par → la moneda se aprecia vs USD.
- * unitsPerUsd: sube el par → la moneda se deprecia vs USD (más unidades por dólar).
- */
 function foreignVsUsdMove(def, rateNow, ratePrev) {
   if (rateNow == null || ratePrev == null || ratePrev === 0) {
     return { changePct: null, vsUsd: null, changeAbs: null };
@@ -62,15 +50,13 @@ function foreignVsUsdMove(def, rateNow, ratePrev) {
   };
 }
 
-function buildPair(def, usdRates, prevUsdRates, cierreFecha) {
-  const rate = rateFromUsdQuote(def, usdRates);
+function buildPair(def, rate, ratePrev, meta = {}) {
   if (rate == null) return null;
 
   const decimals = pairDecimals(def);
   const rateRounded = roundRate(rate, decimals);
-  const ratePrev = prevUsdRates ? rateFromUsdQuote(def, prevUsdRates) : null;
-  const move = foreignVsUsdMove(def, rateRounded, ratePrev != null ? roundRate(ratePrev, decimals) : null);
-
+  const ratePrevRounded = ratePrev != null ? roundRate(ratePrev, decimals) : null;
+  const move = foreignVsUsdMove(def, rateRounded, ratePrevRounded);
   const foreignName = def.kind === 'usdPerUnit' ? def.left : def.right;
 
   return {
@@ -80,13 +66,75 @@ function buildPair(def, usdRates, prevUsdRates, cierreFecha) {
     right: def.right,
     foreignName,
     rate: rateRounded,
-    ratePrev: ratePrev != null ? roundRate(ratePrev, decimals) : null,
-    cierreFecha: ratePrev != null ? cierreFecha : null,
+    ratePrev: ratePrevRounded,
+    cierreFecha: ratePrevRounded != null ? (meta.cierreLabel || 'sesión anterior') : null,
     changePct: move.changePct,
     changeAbs: move.changeAbs,
     vsUsd: move.vsUsd,
     decimals,
     subtitle: def.kind === 'usdPerUnit' ? 'USD por 1 unidad' : 'Unidades por 1 USD',
+    asOf: meta.asOf || null,
+  };
+}
+
+function rateFromUsdQuote(def, usdRates) {
+  const raw = usdRates?.[def.currency];
+  if (raw == null || raw <= 0) return null;
+  return def.kind === 'usdPerUnit' ? 1 / raw : raw;
+}
+
+async function fetchYahooQuote(yahooSymbol) {
+  const res = await axios.get(`${YAHOO_CHART_BASE}/${encodeURIComponent(yahooSymbol)}`, {
+    params: { interval: '1m', range: '1d' },
+    timeout: 8000,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DashboardTC/1.0)' },
+  });
+
+  const meta = res.data?.chart?.result?.[0]?.meta;
+  if (!meta?.regularMarketPrice) return null;
+
+  return {
+    price: meta.regularMarketPrice,
+    prevClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
+    asOf: meta.regularMarketTime
+      ? new Date(meta.regularMarketTime * 1000).toISOString()
+      : new Date().toISOString(),
+  };
+}
+
+async function fetchFromYahoo() {
+  const rows = await Promise.all(
+    PAIR_DEFS.map(async def => {
+      try {
+        const q = await fetchYahooQuote(def.yahoo);
+        if (!q) return null;
+        return buildPair(def, q.price, q.prevClose, {
+          asOf: q.asOf,
+          cierreLabel: 'cierre sesión ant.',
+        });
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const pairs = rows.filter(Boolean);
+  if (!pairs.length) return null;
+
+  const fechaActualizacion = pairs
+    .map(p => p.asOf)
+    .filter(Boolean)
+    .sort()
+    .pop();
+
+  return {
+    base: 'USD',
+    fecha: fechaActualizacion?.slice(0, 10) ?? null,
+    fechaActualizacion,
+    cierreReferencia: 'cierre sesión anterior',
+    fuente: 'Yahoo Finance (FX mercado)',
+    live: true,
+    pairs,
   };
 }
 
@@ -99,8 +147,7 @@ async function fetchUsdRatesForDate(dateStr) {
   return { rates: res.data.rates, date: res.data.date };
 }
 
-/** Último cierre BCE publicado antes de `sessionDate`. */
-async function fetchPreviousClose(sessionDate) {
+async function fetchPreviousFrankfurterClose(sessionDate) {
   const cursor = new Date(`${sessionDate}T12:00:00Z`);
 
   for (let i = 0; i < 12; i++) {
@@ -115,7 +162,7 @@ async function fetchPreviousClose(sessionDate) {
   return null;
 }
 
-async function fetchForexVsUsd() {
+async function fetchFromFrankfurter() {
   const latestRes = await axios.get(`${FRANKFURTER_BASE}/latest`, {
     params: { from: 'USD', to: CURRENCIES.join(',') },
     timeout: 8000,
@@ -123,19 +170,38 @@ async function fetchForexVsUsd() {
   });
 
   const { rates, date } = latestRes.data;
-  const prev = await fetchPreviousClose(date);
+  const prev = await fetchPreviousFrankfurterClose(date);
 
-  const pairs = PAIR_DEFS
-    .map(def => buildPair(def, rates, prev?.rates, prev?.date))
-    .filter(Boolean);
+  const pairs = PAIR_DEFS.map(def => {
+    const rate = rateFromUsdQuote(def, rates);
+    const ratePrev = prev?.rates ? rateFromUsdQuote(def, prev.rates) : null;
+    return buildPair(def, rate, ratePrev, {
+      cierreLabel: prev?.date ?? null,
+    });
+  }).filter(Boolean);
 
   return {
     base: 'USD',
     fecha: date,
+    fechaActualizacion: `${date}T00:00:00.000Z`,
     cierreReferencia: prev?.date ?? null,
-    fuente: 'Frankfurter (BCE)',
+    fuente: 'Frankfurter (BCE, referencia diaria)',
+    live: false,
     pairs,
   };
+}
+
+async function fetchForexVsUsd() {
+  try {
+    const live = await fetchFromYahoo();
+    if (live?.pairs?.length >= PAIR_DEFS.length - 1) {
+      return live;
+    }
+  } catch (err) {
+    console.warn('[forex] Yahoo:', err.message);
+  }
+
+  return fetchFromFrankfurter();
 }
 
 async function getForexVsUsd() {
