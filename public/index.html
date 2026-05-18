@@ -160,7 +160,14 @@
       font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums;
       color: var(--text); line-height: 1.1;
     }
-    .fx-global-sub { font-size: .58rem; color: var(--muted); }
+    .fx-global-sub { font-size: .58rem; color: var(--muted); line-height: 1.35; }
+    .fx-global-chg {
+      display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .68rem; font-weight: 700; margin-top: .1rem;
+    }
+    .fx-global-chg.aprecia { color: var(--green); }
+    .fx-global-chg.deprecia { color: var(--red); }
+    .fx-global-chg.estable { color: var(--muted); }
     .fx-global-empty { font-size: .82rem; color: var(--muted); }
 
     /* ── Fila 2: Proyección + Gráfico ── */
@@ -764,6 +771,20 @@
     return `<span class="fx-flags" aria-hidden="true">${fxFlag(leftCode, '')}${fxFlag(rightCode, '')}</span>`;
   }
 
+  function fxGlobalChgHtml(p) {
+    if (p.changePct == null || !p.vsUsd) {
+      return '<div class="fx-global-chg estable">— vs cierre ant.</div>';
+    }
+    const sign = p.changePct > 0 ? '+' : '';
+    const arrow = p.vsUsd === 'aprecia' ? '▲' : p.vsUsd === 'deprecia' ? '▼' : '●';
+    const label = p.vsUsd === 'aprecia'
+      ? `${escHtml(p.foreignName)} aprecia vs USD`
+      : p.vsUsd === 'deprecia'
+        ? `${escHtml(p.foreignName)} deprecia vs USD`
+        : 'Sin cambio vs USD';
+    return `<div class="fx-global-chg ${p.vsUsd}"><span aria-hidden="true">${arrow}</span><span>${sign}${p.changePct}% · ${label}</span></div>`;
+  }
+
   function renderFxGlobal(data) {
     const card = document.getElementById('fxGlobalCard');
     if (!card) return;
@@ -774,18 +795,25 @@
       return;
     }
 
-    const items = data.pairs.map(p => `
+    const items = data.pairs.map(p => {
+      const cierreLine = p.ratePrev != null && p.cierreFecha
+        ? `Cierre ${escHtml(p.cierreFecha)}: ${fmtFx(p.ratePrev, p.decimals)}`
+        : escHtml(p.subtitle);
+      return `
       <div class="fx-global-item">
         <div class="fx-pair-label fx-global-pair">${fxPairFlags(p.flags[0], p.flags[1])}<span>${escHtml(p.pair)}</span></div>
         <div class="fx-global-rate">${fmtFx(p.rate, p.decimals)}</div>
-        <div class="fx-global-sub">${escHtml(p.subtitle)}</div>
-      </div>`).join('');
+        ${fxGlobalChgHtml(p)}
+        <div class="fx-global-sub">${cierreLine}</div>
+      </div>`;
+    }).join('');
 
     const staleNote = data.stale ? ' · datos en caché' : '';
+    const cierreRef = data.cierreReferencia ? ` · cierre ant. ${data.cierreReferencia}` : '';
     card.innerHTML = `
       <div class="fx-global-header">
-        <span class="title">Referencia USD · tipos de mercado</span>
-        <span class="fx-global-meta">${escHtml(data.fuente || '')} · ${escHtml(data.fecha || '')}${staleNote}</span>
+        <span class="title">Referencia USD · variación vs cierre BCE</span>
+        <span class="fx-global-meta">${escHtml(data.fuente || '')} · ${escHtml(data.fecha || '')}${cierreRef}${staleNote}</span>
       </div>
       <div class="fx-global-grid">${items}</div>`;
   }
