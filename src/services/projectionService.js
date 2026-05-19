@@ -116,6 +116,71 @@ function getDayOfWeekSignal() {
   return { dow, dayName: DAY_NAMES[dow], score, description: desc };
 }
 
+function getForexGlobalSignal(forexGlobal) {
+  const pairs = Array.isArray(forexGlobal?.pairs) ? forexGlobal.pairs : [];
+  if (pairs.length === 0) return null;
+
+  let usdStrength = 0;
+  let usdWeakness = 0;
+  for (const pair of pairs) {
+    if (pair.vsUsd === 'deprecia') usdStrength++;
+    if (pair.vsUsd === 'aprecia') usdWeakness++;
+  }
+
+  const balance = (usdStrength - usdWeakness) / pairs.length;
+  const score = +(Math.max(-0.8, Math.min(0.8, balance * 0.8))).toFixed(2);
+  const description = score > 0.15
+    ? `Dólar global fortalecido frente a ${usdStrength}/${pairs.length} monedas monitoreadas`
+    : score < -0.15
+      ? `Dólar global debilitado frente a ${usdWeakness}/${pairs.length} monedas monitoreadas`
+      : 'Cruces internacionales sin sesgo claro para USD';
+
+  return { score, description, pairs: pairs.length, usdStrength, usdWeakness };
+}
+
+function getNewsSignal(newsItems) {
+  const items = Array.isArray(newsItems) ? newsItems.slice(0, 12) : [];
+  if (items.length === 0) return null;
+
+  const bullishTerms = [
+    'dólar sube', 'dolar sube', 'riesgo país sube', 'riesgo pais sube',
+    'cepo', 'devaluación', 'devaluacion', 'inflación', 'inflacion',
+    'reservas caen', 'bonos caen', 'adrs caen', 'tensión', 'tension',
+  ];
+  const bearishTerms = [
+    'dólar baja', 'dolar baja', 'riesgo cae', 'riesgo país cae', 'riesgo pais cae',
+    'bcra compra', 'suma reservas', 'reservas suben', 'bonos suben',
+    'superávit', 'superavit', 'desinflación', 'desinflacion',
+  ];
+
+  let rawScore = 0;
+  let hits = 0;
+  for (const item of items) {
+    const text = `${item.title || ''} ${item.summary || ''}`.toLowerCase();
+    const impactWeight = item.impact === 'muy_alto' ? 1.2 : item.impact === 'alto' ? 1 : 0.6;
+    const bullish = bullishTerms.some(term => text.includes(term));
+    const bearish = bearishTerms.some(term => text.includes(term));
+    if (bullish && !bearish) {
+      rawScore += 0.25 * impactWeight;
+      hits++;
+    } else if (bearish && !bullish) {
+      rawScore -= 0.25 * impactWeight;
+      hits++;
+    }
+  }
+
+  const score = +Math.max(-0.9, Math.min(0.9, rawScore)).toFixed(2);
+  const description = hits === 0
+    ? 'Noticias relevantes sin sesgo cambiario directo detectado'
+    : score > 0
+      ? `Noticias con sesgo de presión alcista sobre USD/ARS (${hits} señales)`
+      : score < 0
+        ? `Noticias con sesgo de alivio cambiario (${hits} señales)`
+        : `Noticias mixtas sin dirección dominante (${hits} señales)`;
+
+  return { score, description, hits };
+}
+
 function getSessionPhase() {
   const art  = artNow();
   const hour = art.getUTCHours() + art.getUTCMinutes() / 60;
@@ -174,9 +239,11 @@ function getRecommendation(direction, session, dowSignal) {
 
 // ── Función principal ─────────────────────────────────────────────────────────
 
-function calculateProjection(spot, contracts) {
+function calculateProjection(spot, contracts, context = {}) {
   const futuresSignal = getFuturesSignal(spot, contracts);
   const dowSignal     = getDayOfWeekSignal();
+  const forexSignal   = getForexGlobalSignal(context.forexGlobal);
+  const newsSignal    = getNewsSignal(context.newsItems);
   const session       = getSessionPhase();
 
   let totalScore = 0;
@@ -210,7 +277,29 @@ function calculateProjection(spot, contracts) {
     impacto: dowSignal.score > 0.1 ? 'alcista' : dowSignal.score < -0.1 ? 'bajista' : 'neutro',
   });
 
-  // Señal 3: Fase de la rueda
+  // Señal 3: contexto FX internacional
+  if (forexSignal) {
+    totalScore += forexSignal.score;
+    signals.push({
+      tipo: 'fx_global',
+      icono: forexSignal.score > 0.15 ? '▲' : forexSignal.score < -0.15 ? '▼' : '→',
+      descripcion: forexSignal.description,
+      impacto: forexSignal.score > 0.15 ? 'alcista' : forexSignal.score < -0.15 ? 'bajista' : 'neutro',
+    });
+  }
+
+  // Señal 4: titulares financieros relevantes
+  if (newsSignal) {
+    totalScore += newsSignal.score;
+    signals.push({
+      tipo: 'noticias',
+      icono: newsSignal.score > 0.15 ? '▲' : newsSignal.score < -0.15 ? '▼' : '→',
+      descripcion: newsSignal.description,
+      impacto: newsSignal.score > 0.15 ? 'alcista' : newsSignal.score < -0.15 ? 'bajista' : 'neutro',
+    });
+  }
+
+  // Señal 5: Fase de la rueda
   signals.push({
     tipo: 'sesion',
     icono: '⏱',
@@ -223,7 +312,8 @@ function calculateProjection(spot, contracts) {
   // Rango estimado
   const impliedMove = futuresSignal ? futuresSignal.impliedDailyPct / 100 : 0;
   const dowAdj      = dowSignal.score * 0.0002;
-  const totalMove   = impliedMove + dowAdj;
+  const macroAdj    = ((forexSignal?.score || 0) + (newsSignal?.score || 0)) * 0.00025;
+  const totalMove   = impliedMove + dowAdj + macroAdj;
   const uncertainty = 0.0012; // ±0.12% banda de incertidumbre
 
   const estimated = spot * (1 + totalMove);

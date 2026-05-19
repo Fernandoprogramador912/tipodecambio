@@ -23,3 +23,11 @@ services:
         value: md.rx_DDF_DLR_SPOT
       - key: A3_MAYORISTA_SYMBOL
         value: DLR/SPOT
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_DAILY_PROJECTIONS_TABLE
+        value: daily_projections
+      - key: PROJECTION_JOB_SECRET
+        sync: false

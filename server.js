@@ -7,7 +7,13 @@ const path    = require('path');
 const { getRates }           = require('./src/services/exchangeService');
 const { getNews }            = require('./src/services/newsService');
 const { calculateProjection }                         = require('./src/services/projectionService');
-const { saveProjection, recordClose, getHistory } = require('./src/services/projectionHistoryService');
+const {
+  saveProjection,
+  recordClose,
+  getHistory,
+  getTodayProjection,
+  SUPABASE_ENABLED,
+} = require('./src/services/projectionHistoryService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 
 const app  = express();
@@ -16,6 +22,54 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+async function buildProjectionSnapshot(source = 'manual') {
+  const [rates, futures, news] = await Promise.all([
+    getRates(),
+    getFutures(),
+    getNews().catch(err => ({ items: [], error: err.message })),
+  ]);
+
+  const spot = rates.usd?.venta;
+  if (!spot) {
+    const err = new Error('Sin cotización spot');
+    err.statusCode = 503;
+    throw err;
+  }
+
+  const inputs = {
+    source,
+    capturedAt: new Date().toISOString(),
+    rates: {
+      usd: rates.usd || null,
+      eur: rates.eur || null,
+      mep: rates.mep || null,
+      spreadMepMayorista: rates.spreadMepMayorista || null,
+      forexGlobal: rates.forexGlobal || null,
+    },
+    futures: {
+      enabled: futures.enabled,
+      contracts: (futures.contracts || []).slice(0, 10),
+    },
+    news: {
+      items: (news.items || []).slice(0, 12),
+      error: news.error || null,
+    },
+  };
+
+  const projection = calculateProjection(spot, futures.contracts || [], {
+    forexGlobal: rates.forexGlobal,
+    newsItems: news.items || [],
+  });
+
+  return { projection, inputs };
+}
+
+function validateJobSecret(req) {
+  const expected = process.env.PROJECTION_JOB_SECRET;
+  if (!expected) return process.env.NODE_ENV !== 'production';
+  return req.get('x-job-secret') === expected;
+}
 
 // --- API: tipos de cambio ---
 app.get('/api/fx', async (req, res) => {
@@ -35,28 +89,46 @@ app.get('/api/fx', async (req, res) => {
 // --- API: proyección intradiaria ---
 app.get('/api/projection', async (req, res) => {
   try {
-    const [rates, futures] = await Promise.all([getRates(), getFutures()]);
-    const spot = rates.usd?.venta;
-    if (!spot) return res.status(503).json({ ok: false, error: 'Sin cotización spot' });
-    const contracts = futures.contracts || [];
-    const projection = calculateProjection(spot, contracts);
-    res.json({ ok: true, data: projection });
+    const saved = await getTodayProjection();
+    if (saved?.projection) {
+      return res.json({
+        ok: true,
+        data: saved.projection,
+        stored: true,
+        storage: SUPABASE_ENABLED ? 'supabase' : 'local-file',
+      });
+    }
+
+    const { projection } = await buildProjectionSnapshot('preview');
+    res.json({ ok: true, data: projection, stored: false, preview: true });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 
 // --- API: guardar proyección del día ---
 app.post('/api/projection/record', async (req, res) => {
   try {
-    const [rates, futures] = await Promise.all([getRates(), getFutures()]);
-    const spot = rates.usd?.venta;
-    if (!spot) return res.status(503).json({ ok: false, error: 'Sin cotización spot' });
-    const projection = calculateProjection(spot, futures.contracts || []);
-    const result = saveProjection(projection);
+    const { projection, inputs } = await buildProjectionSnapshot('manual-record');
+    const result = await saveProjection(projection, inputs);
     res.json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: job diario 9:00 ART (GitHub Actions / cron externo) ---
+app.post('/api/projection/daily-run', async (req, res) => {
+  if (!validateJobSecret(req)) {
+    return res.status(401).json({ ok: false, error: 'No autorizado' });
+  }
+
+  try {
+    const { projection, inputs } = await buildProjectionSnapshot('daily-9am');
+    const result = await saveProjection(projection, inputs);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 
@@ -67,7 +139,7 @@ app.post('/api/projection/close', async (req, res) => {
     if (!closePrice || isNaN(closePrice)) {
       return res.status(400).json({ ok: false, error: 'closePrice requerido' });
     }
-    const result = recordClose(Number(closePrice));
+    const result = await recordClose(Number(closePrice));
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -75,9 +147,10 @@ app.post('/api/projection/close', async (req, res) => {
 });
 
 // --- API: historial de proyecciones ---
-app.get('/api/projection/history', (req, res) => {
+app.get('/api/projection/history', async (req, res) => {
   try {
-    res.json({ ok: true, ...getHistory() });
+    const history = await getHistory();
+    res.json({ ok: true, ...history });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

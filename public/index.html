@@ -1437,7 +1437,7 @@
     const tbody = document.getElementById('historyBody');
     if (!records || records.length === 0) {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">
-        Sin registros aún. La primera proyección se guarda automáticamente al abrir la página durante la rueda (10:00–15:00 hs).
+        Sin registros aún. La proyección diaria se guarda automáticamente a las 9:00 ART.
       </td></tr>`;
       return;
     }
@@ -1481,8 +1481,7 @@
   }
 
   async function saveProjectionRecord() {
-    // Solo guardar durante horario de rueda (10:00–15:00)
-    if (!isTradingHours()) return;
+    // Fallback manual: el guardado principal lo dispara GitHub Actions a las 9:00 ART.
     try {
       await fetch('/api/projection/record', { method: 'POST' });
       fetchProjectionHistory();
@@ -1519,8 +1518,6 @@
     await Promise.all([fetchFX(), fetchNews(), fetchHistory(), fetchProjection()]);
     // Cargar historial de proyecciones siempre (independiente del horario)
     fetchProjectionHistory();
-    // Guardar proyección del día si estamos en rueda
-    saveProjectionRecord();
   }
 
   function startFXLoop() {

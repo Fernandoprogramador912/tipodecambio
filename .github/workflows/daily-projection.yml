@@ -1,0 +1,32 @@
+# Genera una sola proyección diaria a las 9:00 ART (12:00 UTC).
+# Requiere secrets de GitHub:
+# - APP_URL: URL pública de Render, sin barra final
+# - PROJECTION_JOB_SECRET: mismo valor configurado en Render
+name: Daily projection
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  run-daily-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run projection job
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "Configurá el secret APP_URL con la URL pública del deploy (sin barra final)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PROJECTION_JOB_SECRET }}" ]; then
+            echo "Configurá el secret PROJECTION_JOB_SECRET"
+            exit 1
+          fi
+
+          curl -fsS -X POST "${{ secrets.APP_URL }}/api/projection/daily-run" \
+            -H "x-job-secret: ${{ secrets.PROJECTION_JOB_SECRET }}" \
+            -H "content-type: application/json" \
+            | head -c 2000
+          echo ""
+          echo "OK $(date -u)"

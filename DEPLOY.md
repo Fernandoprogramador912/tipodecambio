@@ -28,7 +28,9 @@ El dólar mayorista necesita un proceso Node con **WebSocket a A3** (no sirve Ve
 
    El workflow `.github/workflows/keep-alive.yml` hará ping a `/api/health` cada 14 minutos.
 
-7. Activá Actions: **Actions** → workflow **Keep alive** → **Run workflow** (una vez para probar).
+7. **Proyección diaria 9:00 ART:** configurá también el secret `PROJECTION_JOB_SECRET` en GitHub con el mismo valor que cargaste en Render. El workflow `.github/workflows/daily-projection.yml` llama a `/api/projection/daily-run` todos los días hábiles a las 9:00 ART.
+
+8. Activá Actions: **Actions** → workflow **Keep alive** → **Run workflow** (una vez para probar). Luego probá **Daily projection** manualmente cuando quieras validar el guardado.
 
 ### Qué esperar (plan free)
 
@@ -79,6 +81,10 @@ Si más adelante querés cero cold starts, se puede cambiar Render a plan Starte
 | `FUTURES_BASE_URL` | `https://api.remarkets.primary.com.ar` |
 | `A3_MATRIZ_WS_URL` | `wss://matbarofex.primary.ventures/ws` |
 | `A3_MD_TOPIC` | `md.rx_DDF_DLR_SPOT` |
+| `SUPABASE_URL` | Sí, para historial persistente |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sí, secreto de servidor |
+| `SUPABASE_DAILY_PROJECTIONS_TABLE` | `daily_projections` |
+| `PROJECTION_JOB_SECRET` | Sí, mismo valor en Render y GitHub |
 
 ---
 
