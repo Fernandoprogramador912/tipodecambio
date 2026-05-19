@@ -1,0 +1,25 @@
+# Plan GRATUITO de Render + keep-alive (ver DEPLOY.md y .github/workflows/keep-alive.yml)
+services:
+  - type: web
+    name: dashboard-tc-noticias
+    runtime: docker
+    plan: free
+    region: ohio
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_FUTURES
+        value: true
+      - key: FUTURES_USER
+        sync: false
+      - key: FUTURES_PASSWORD
+        sync: false
+      - key: FUTURES_BASE_URL
+        value: https://api.remarkets.primary.com.ar
+      - key: A3_MATRIZ_WS_URL
+        value: wss://matbarofex.primary.ventures/ws
+      - key: A3_MD_TOPIC
+        value: md.rx_DDF_DLR_SPOT
+      - key: A3_MAYORISTA_SYMBOL
+        value: DLR/SPOT

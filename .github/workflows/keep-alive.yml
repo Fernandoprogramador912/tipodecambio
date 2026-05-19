@@ -1,0 +1,23 @@
+# Evita que Render (plan free) duerma el servicio por inactividad.
+# Configurá el secret APP_URL en GitHub: Settings → Secrets → Actions → APP_URL
+# Ejemplo: https://dashboard-tc-noticias.onrender.com
+name: Keep alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "Configurá el secret APP_URL con la URL pública del deploy (sin barra final)"
+            exit 1
+          fi
+          curl -fsS "${{ secrets.APP_URL }}/api/health" | head -c 500
+          echo ""
+          echo "OK $(date -u)"

@@ -115,9 +115,10 @@ app.get('*', (req, res) => {
 
 // Local: levantar servidor. Vercel: exportar el app como handler.
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const host = process.env.HOST || '0.0.0.0';
+  app.listen(PORT, host, () => {
     console.log(`\n  Dashboard TC + Noticias\n`);
-    console.log(`  Local: http://localhost:${PORT}`);
+    console.log(`  Escuchando en http://${host}:${PORT}`);
     console.log(`  USD (UI mayorista): ${FUTURES_ENABLED ? 'A3/Primary futuro DLR' : 'fallback Ámbito'}\n`);
   });
 }
