@@ -217,8 +217,6 @@
       border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .75rem;
       flex-wrap: wrap; gap: .2rem;
     }
-    .stale-badge { font-size: .62rem; background: rgba(248,81,73,.15); color: var(--red); padding: .1rem .4rem; border-radius: 4px; }
-
     /* ── Card EUR (pequeño) ── */
     .eur-card {
       background: var(--surface);
@@ -785,17 +783,45 @@
     return `<div class="fx-global-chg ${p.vsUsd}"><span aria-hidden="true">${arrow}</span><span>${sign}${p.changePct}% · ${label}</span></div>`;
   }
 
-  function renderFxGlobal(data) {
+  function buildUsdArsFxPair(usd) {
+    if (!usd?.venta) return null;
+    const cierre = usd.cierreValor ?? null;
+    const changePct = cierre
+      ? Number((((usd.venta - cierre) / cierre) * 100).toFixed(2))
+      : null;
+    const vsUsd = changePct == null || changePct === 0
+      ? 'estable'
+      : changePct > 0
+        ? 'deprecia'
+        : 'aprecia';
+
+    return {
+      pair: 'USD/ARS',
+      flags: ['us', 'ar'],
+      foreignName: 'Peso argentino',
+      rate: usd.venta,
+      ratePrev: cierre,
+      cierreFecha: fmtCierreDate(usd.cierreFecha) || 'cierre ant.',
+      changePct,
+      vsUsd,
+      decimals: 2,
+      subtitle: 'Pesos por 1 USD',
+    };
+  }
+
+  function renderFxGlobal(data, usd) {
     const card = document.getElementById('fxGlobalCard');
     if (!card) return;
     card.classList.remove('skeleton');
 
-    if (!data?.pairs?.length) {
+    const pairs = [buildUsdArsFxPair(usd), ...(data?.pairs || [])].filter(Boolean);
+
+    if (!pairs.length) {
       card.innerHTML = '<div class="fx-global-empty">No se pudieron cargar los cruces internacionales.</div>';
       return;
     }
 
-    const items = data.pairs.map(p => {
+    const items = pairs.map(p => {
       const cierreLine = p.ratePrev != null && p.cierreFecha
         ? `Cierre ${escHtml(p.cierreFecha)}: ${fmtFx(p.ratePrev, p.decimals)}`
         : escHtml(p.subtitle);
@@ -828,13 +854,6 @@
     txt.textContent = text;
   }
 
-  // ── Render USD (card grande) ──
-  function isMayoristaStale(iso) {
-    if (!iso) return true;
-    const t = new Date(iso).getTime();
-    return Number.isNaN(t) || Date.now() - t > 90 * 1000;
-  }
-
   function fmtCierreDate(ymd) {
     if (!ymd) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
@@ -846,10 +865,10 @@
     return ymd;
   }
 
-  function renderUSD(r, stale) {
+  // ── Render USD (card grande) ──
+  function renderUSD(r) {
     const card = document.getElementById('usdCard');
     card.classList.remove('skeleton');
-    const mayoristaStale = stale || isMayoristaStale(r.fechaActualizacion);
     const cierreLine = r.cierreValor != null
       ? `Cierre ${fmtCierreDate(r.cierreFecha) || '—'}: <strong>$${fmt(r.cierreValor)}</strong>`
       : '';
@@ -860,7 +879,6 @@
           <div class="card-label fx-pair-label">${FX_LABEL_USD}</div>
           <div class="card-name">${r.nombre}</div>
         </div>
-        ${mayoristaStale ? '<span class="stale-badge">Cotización desactualizada</span>' : ''}
       </div>
       <div class="usd-values">
         <div class="usd-col"><span class="lbl">Último</span><span class="val">$${fmt(r.venta)}</span></div>
@@ -1093,11 +1111,11 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      const { usd, eur, mep, spreadMepMayorista, forexGlobal, stale } = json.data;
-      if (usd) renderUSD(usd, stale);
+      const { usd, eur, mep, spreadMepMayorista, forexGlobal } = json.data;
+      if (usd) renderUSD(usd);
       if (eur) renderEUR(eur);
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
-      if (forexGlobal) renderFxGlobal(forexGlobal);
+      if (forexGlobal) renderFxGlobal(forexGlobal, usd);
       // Guardar punto en localStorage y actualizar gráfico
       if (usd?.venta && isTradingHours()) {
         lsAddPoint(usd.venta);
