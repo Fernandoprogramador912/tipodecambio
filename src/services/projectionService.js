@@ -17,6 +17,12 @@ const MONTH_MAP = {
 
 const DAY_NAMES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
+const DIRECTION_MOVE_THRESHOLDS_ARS = {
+  strong: 20,
+  moderate: 10,
+  mild: 3,
+};
+
 // ── Helpers de fecha ──────────────────────────────────────────────────────────
 
 function artNow() {
@@ -195,14 +201,15 @@ function getSessionPhase() {
 
 // ── Dirección y rango ─────────────────────────────────────────────────────────
 
-function scoreToDirection(score) {
-  if (score >= 2.5)  return { label: 'Alcista fuerte',    tag: 'muy_alto', arrow: '▲▲' };
-  if (score >= 1.2)  return { label: 'Alcista moderado',  tag: 'alto',     arrow: '▲'  };
-  if (score >= 0.4)  return { label: 'Levemente alcista', tag: 'medio',    arrow: '↗'  };
-  if (score > -0.4)  return { label: 'Neutro / estable',  tag: 'neutro',   arrow: '→'  };
-  if (score > -1.2)  return { label: 'Levemente bajista', tag: 'medio',    arrow: '↘'  };
-  if (score > -2.5)  return { label: 'Bajista moderado',  tag: 'alto',     arrow: '▼'  };
-  return               { label: 'Bajista fuerte',         tag: 'muy_alto', arrow: '▼▼' };
+function moveToDirection(moveARS) {
+  const { strong, moderate, mild } = DIRECTION_MOVE_THRESHOLDS_ARS;
+  if (moveARS >= strong)    return { label: 'Alcista fuerte',    tag: 'muy_alto', arrow: '▲▲' };
+  if (moveARS >= moderate)  return { label: 'Alcista moderado',  tag: 'alto',     arrow: '▲'  };
+  if (moveARS >= mild)      return { label: 'Levemente alcista', tag: 'medio',    arrow: '↗'  };
+  if (moveARS > -mild)      return { label: 'Neutro / estable',  tag: 'neutro',   arrow: '→'  };
+  if (moveARS > -moderate)  return { label: 'Levemente bajista', tag: 'medio',    arrow: '↘'  };
+  if (moveARS > -strong)    return { label: 'Bajista moderado',  tag: 'alto',     arrow: '▼'  };
+  return                { label: 'Bajista fuerte',         tag: 'muy_alto', arrow: '▼▼' };
 }
 
 function getRecommendation(direction, session, dowSignal) {
@@ -307,8 +314,6 @@ function calculateProjection(spot, contracts, context = {}) {
     impacto: 'neutro',
   });
 
-  const direction = scoreToDirection(totalScore);
-
   // Rango estimado
   const impliedMove = futuresSignal ? futuresSignal.impliedDailyPct / 100 : 0;
   const dowAdj      = dowSignal.score * 0.0002;
@@ -317,6 +322,8 @@ function calculateProjection(spot, contracts, context = {}) {
   const uncertainty = 0.0012; // ±0.12% banda de incertidumbre
 
   const estimated = spot * (1 + totalMove);
+  const estimatedMoveARS = estimated - spot;
+  const direction = moveToDirection(estimatedMoveARS);
   const rangeMin  = Math.round(spot * (1 + totalMove - uncertainty));
   const rangeMax  = Math.round(spot * (1 + totalMove + uncertainty));
 
@@ -325,6 +332,7 @@ function calculateProjection(spot, contracts, context = {}) {
     direction,
     totalScore: +totalScore.toFixed(2),
     estimated:  +estimated.toFixed(2),
+    estimatedMoveARS: +estimatedMoveARS.toFixed(2),
     rangeMin,
     rangeMax,
     variacionEstimada: totalMove >= 0

@@ -949,6 +949,9 @@
     const isAlcista = dir.arrow.includes('▲') || dir.arrow.includes('↗');
     const isBajista = dir.arrow.includes('▼') || dir.arrow.includes('↘');
     const colorClass = isAlcista ? 'alcista' : isBajista ? 'bajista' : 'neutro';
+    const estimatedMoveARS = p.estimatedMoveARS ?? (
+      p.estimated != null && p.spot != null ? p.estimated - p.spot : null
+    );
 
     card.className = `proj-card ${colorClass}`;
 
@@ -969,6 +972,7 @@
         </div>
         <div class="proj-range">
           <div>Variación estimada: <strong>${p.variacionEstimada}</strong></div>
+          <div>Movimiento estimado: <strong>${estimatedMoveARS >= 0 ? '+' : ''}$${fmt(estimatedMoveARS)}</strong></div>
           <div>Rango de cierre: <strong>$${p.rangeMin.toLocaleString('es-AR')} – $${p.rangeMax.toLocaleString('es-AR')}</strong></div>
           <div>Spot actual: $${fmt(p.spot)}</div>
         </div>
