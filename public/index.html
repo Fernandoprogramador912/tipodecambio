@@ -253,6 +253,24 @@
       flex-direction: column; gap: .5rem;
     }
     .chart-wrapper { position: relative; height: 185px; }
+    .previous-chart-panel {
+      margin-top: .8rem;
+      padding-top: .7rem;
+      border-top: 1px solid var(--border);
+    }
+    .previous-chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .5rem; flex-wrap: wrap; margin-bottom: .45rem;
+    }
+    .previous-chart-title { font-size: .72rem; font-weight: 700; color: var(--text); }
+    .previous-chart-subtitle { font-size: .62rem; color: var(--muted); }
+    .previous-chart-wrapper { position: relative; height: 92px; }
+    .previous-chart-empty {
+      height: 76px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: .7rem;
+      border: 1px dashed var(--border); border-radius: 8px;
+    }
 
     /* ── Futuros ── */
     .futures-grid {
@@ -609,6 +627,16 @@
             <canvas id="fxChart"></canvas>
           </div>
         </div>
+        <div class="previous-chart-panel" id="previousChartPanel">
+          <div class="previous-chart-header">
+            <div class="previous-chart-title">Rueda anterior</div>
+            <div class="previous-chart-subtitle" id="previousChartSubtitle">Sin datos guardados todavía</div>
+          </div>
+          <div class="previous-chart-empty" id="previousChartEmpty">Se completa cuando haya una rueda previa registrada en este navegador.</div>
+          <div class="previous-chart-wrapper" id="previousChartWrapper" style="display:none">
+            <canvas id="previousFxChart"></canvas>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -690,7 +718,7 @@
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem(THEME_KEY, next);
     updateThemeToggleUI();
-    if (fxChart) buildChart(lsLoad());
+    if (fxChart || previousFxChart) fetchHistory();
   }
 
   function toggleTheme() {
@@ -707,7 +735,15 @@
     return artMin >= 10 * 60 && artMin <= 15 * 60 + 30;
   }
 
+  // El gráfico intradiario se congela al cierre formal de rueda (15:00 ART).
+  function isChartRecordingHours() {
+    const now = new Date();
+    const artMin = (now.getUTCHours() - 3 + 24) % 24 * 60 + now.getUTCMinutes();
+    return artMin >= 10 * 60 && artMin <= 15 * 60;
+  }
+
   let fxChart = null;
+  let previousFxChart = null;
   let fxErrorCount = 0;
   let lastNewsItems = [];
 
@@ -995,11 +1031,7 @@
     return art.getUTCHours() * 60 + art.getUTCMinutes();
   }
 
-  function buildChart(points) {
-    const noData  = document.getElementById('chartNoData');
-    const wrapper = document.getElementById('chartWrapper');
-    const subtitle = document.getElementById('chartSubtitle');
-
+  function normalizeChartPoints(points) {
     const slots  = generateSlots(); // ['10:00','10:10',...,'15:00']
     const values = new Array(SLOTS_COUNT).fill(null);
 
@@ -1014,8 +1046,108 @@
       }
     });
 
-    // Contar puntos reales registrados
-    const realCount = values.filter(v => v !== null).length;
+    const realValues = values.filter(v => v !== null);
+    return { slots, values, realValues, realCount: realValues.length };
+  }
+
+  function chartScale(realValues) {
+    const minVal  = Math.min(...realValues);
+    const maxVal  = Math.max(...realValues);
+    const padding = Math.max((maxVal - minVal) * 0.2, 2);
+    return { min: minVal - padding, max: maxVal + padding };
+  }
+
+  function makeIntradayChartData(slots, values, label, th) {
+    return {
+      labels: slots,
+      datasets: [{
+        label,
+        data: values,
+        borderColor: th.line,
+        backgroundColor: th.fill,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        fill: true,
+        tension: 0.3,
+        spanGaps: true,
+      }],
+    };
+  }
+
+  function makeIntradayChartOptions(slots, realValues, th, compact = false) {
+    const scale = chartScale(realValues);
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: !compact, labels: { color: th.muted, font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: th.tooltipBg,
+          borderColor: th.tooltipBorder,
+          borderWidth: 1,
+          titleColor: th.text,
+          bodyColor: th.muted,
+          callbacks: {
+            title: ctx => slots[ctx[0].dataIndex] || '',
+            label: ctx => ctx.parsed.y != null
+              ? ` $${ctx.parsed.y.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+              : ' Sin dato',
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: th.muted,
+            font: { size: compact ? 9 : 11 },
+            maxRotation: 0,
+            callback: (val, idx) => slots[idx].endsWith(':00') ? slots[idx] : '',
+          },
+          grid: { color: th.grid },
+        },
+        y: {
+          min: scale.min,
+          max: scale.max,
+          ticks: {
+            color: th.muted,
+            font: { size: compact ? 9 : 11 },
+            maxTicksLimit: compact ? 3 : 6,
+            callback: v => '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 0 }),
+          },
+          grid: { color: th.grid },
+        }
+      }
+    };
+  }
+
+  function updateChartInstance(currentChart, canvasId, chartData, options) {
+    if (currentChart) {
+      currentChart.data = chartData;
+      currentChart.options = options;
+      currentChart.update('none');
+      return currentChart;
+    }
+    return new Chart(document.getElementById(canvasId).getContext('2d'), {
+      type: 'line',
+      data: chartData,
+      options,
+    });
+  }
+
+  function formatStoredDay(ymd) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
+    const [yy, mm, dd] = ymd.split('-');
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  function buildChart(points) {
+    const noData  = document.getElementById('chartNoData');
+    const wrapper = document.getElementById('chartWrapper');
+    const subtitle = document.getElementById('chartSubtitle');
+
+    const { slots, values, realValues, realCount } = normalizeChartPoints(points);
 
     if (realCount === 0) {
       noData.style.display = 'flex';
@@ -1028,80 +1160,52 @@
     noData.style.display = 'none';
     wrapper.style.display = 'block';
 
-    const allVals = values.filter(v => v !== null);
-    const minVal  = Math.min(...allVals);
-    const maxVal  = Math.max(...allVals);
-    const padding = Math.max((maxVal - minVal) * 0.2, 2);
-
     const th = getChartTheme();
-    const chartData = {
-      labels: slots,
-      datasets: [{
-        label: 'Venta USD/ARS',
-        data: values,
-        borderColor: th.line,
-        backgroundColor: th.fill,
-        borderWidth: 2.5,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        fill: true,
-        tension: 0.3,
-        spanGaps: true,
-      }],
-    };
+    const chartData = makeIntradayChartData(slots, values, 'Venta USD/ARS', th);
+    const options = makeIntradayChartOptions(slots, realValues, th);
+    fxChart = updateChartInstance(fxChart, 'fxChart', chartData, options);
 
-    const options = {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { labels: { color: th.muted, font: { size: 11 }, boxWidth: 12 } },
-        tooltip: {
-          backgroundColor: th.tooltipBg,
-          borderColor: th.tooltipBorder,
-          borderWidth: 1,
-          titleColor: th.text,
-          bodyColor: th.muted,
-          callbacks: {
-            label: ctx => ctx.parsed.y != null
-              ? ` $${ctx.parsed.y.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
-              : ' Sin dato',
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: th.muted,
-            font: { size: 11 },
-            maxRotation: 0,
-            callback: (val, idx) => slots[idx].endsWith(':00') ? slots[idx] : '',
-          },
-          grid: { color: th.grid },
-        },
-        y: {
-          min: minVal - padding,
-          max: maxVal + padding,
-          ticks: {
-            color: th.muted,
-            font: { size: 11 },
-            callback: v => '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 0 }),
-          },
-          grid: { color: th.grid },
-        }
-      }
-    };
+    const lastVal = realValues[realValues.length - 1];
+    const fixedNote = isChartRecordingHours() ? '' : ' · rueda cerrada, gráfico fijo hasta mañana';
+    subtitle.textContent = `${realCount} puntos registrados · última cotización $${fmt(lastVal)} (venta)${fixedNote}`;
+  }
 
-    if (fxChart) {
-      fxChart.data = chartData;
-      fxChart.options = options;
-      fxChart.update('none');
-    } else {
-      fxChart = new Chart(document.getElementById('fxChart').getContext('2d'), { type: 'line', data: chartData, options });
+  function buildPreviousChart(dayHistory) {
+    const empty = document.getElementById('previousChartEmpty');
+    const wrapper = document.getElementById('previousChartWrapper');
+    const subtitle = document.getElementById('previousChartSubtitle');
+
+    if (!dayHistory?.points?.length) {
+      empty.style.display = 'flex';
+      wrapper.style.display = 'none';
+      subtitle.textContent = 'Sin datos guardados todavía';
+      if (previousFxChart) { previousFxChart.destroy(); previousFxChart = null; }
+      return;
     }
 
-    const lastVal = allVals[allVals.length - 1];
-    subtitle.textContent = `${realCount} puntos registrados · última cotización $${fmt(lastVal)} (venta)`;
+    const { slots, values, realValues, realCount } = normalizeChartPoints(dayHistory.points);
+    if (realCount === 0) {
+      empty.style.display = 'flex';
+      wrapper.style.display = 'none';
+      subtitle.textContent = `${formatStoredDay(dayHistory.date)} · sin puntos dentro de rueda`;
+      if (previousFxChart) { previousFxChart.destroy(); previousFxChart = null; }
+      return;
+    }
+
+    empty.style.display = 'none';
+    wrapper.style.display = 'block';
+
+    const th = getChartTheme();
+    const chartData = makeIntradayChartData(slots, values, 'Rueda anterior', th);
+    const options = makeIntradayChartOptions(slots, realValues, th, true);
+    previousFxChart = updateChartInstance(previousFxChart, 'previousFxChart', chartData, options);
+
+    const firstVal = realValues[0];
+    const lastVal = realValues[realValues.length - 1];
+    const delta = lastVal - firstVal;
+    const pct = firstVal ? (delta / firstVal) * 100 : 0;
+    const sign = delta > 0 ? '+' : '';
+    subtitle.textContent = `${formatStoredDay(dayHistory.date)} · ${realCount} puntos · ${sign}$${fmt(delta)} (${sign}${pct.toFixed(2)}%)`;
   }
 
   // ── Fetch FX ──
@@ -1117,7 +1221,7 @@
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
       if (forexGlobal) renderFxGlobal(forexGlobal, usd);
       // Guardar punto en localStorage y actualizar gráfico
-      if (usd?.venta && isTradingHours()) {
+      if (usd?.venta && isChartRecordingHours()) {
         lsAddPoint(usd.venta);
         fetchHistory();
       }
@@ -1136,24 +1240,36 @@
   }
 
   // ── Historial en localStorage ──
-  const LS_KEY = () => `tcAR_history_${new Date().toISOString().slice(0, 10)}`;
+  const HISTORY_PREFIX = 'tcAR_history_';
+  const HISTORY_RETENTION_DAYS = 7;
+  const LS_KEY = (dateStr = todayARTString()) => `${HISTORY_PREFIX}${dateStr}`;
 
-  function lsLoad() {
+  function todayARTString() {
+    const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    return art.toISOString().slice(0, 10);
+  }
+
+  function lsLoad(dateStr = todayARTString()) {
     try {
-      const raw = localStorage.getItem(LS_KEY());
+      const raw = localStorage.getItem(LS_KEY(dateStr));
       return raw ? JSON.parse(raw) : [];
     } catch { return []; }
   }
 
-  function lsSave(points) {
+  function lsPruneOldDays() {
     try {
-      localStorage.setItem(LS_KEY(), JSON.stringify(points));
-      // Limpiar días anteriores
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('tcAR_history_') && key !== LS_KEY()) {
-          localStorage.removeItem(key);
-        }
-      }
+      const keys = Object.keys(localStorage)
+        .filter(key => key.startsWith(HISTORY_PREFIX))
+        .sort()
+        .reverse();
+      keys.slice(HISTORY_RETENTION_DAYS).forEach(key => localStorage.removeItem(key));
+    } catch {}
+  }
+
+  function lsSave(points, dateStr = todayARTString()) {
+    try {
+      localStorage.setItem(LS_KEY(dateStr), JSON.stringify(points));
+      lsPruneOldDays();
     } catch {}
   }
 
@@ -1164,8 +1280,24 @@
     return points;
   }
 
+  function lsLoadPreviousDay() {
+    const today = todayARTString();
+    try {
+      const previousKey = Object.keys(localStorage)
+        .filter(key => key.startsWith(HISTORY_PREFIX))
+        .map(key => key.slice(HISTORY_PREFIX.length))
+        .filter(date => date < today && lsLoad(date).length > 0)
+        .sort()
+        .pop();
+      return previousKey ? { date: previousKey, points: lsLoad(previousKey) } : null;
+    } catch {
+      return null;
+    }
+  }
+
   function fetchHistory() {
     buildChart(lsLoad());
+    buildPreviousChart(lsLoadPreviousDay());
   }
 
   // ── Fetch Noticias ──
