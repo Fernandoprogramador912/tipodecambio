@@ -226,6 +226,10 @@ async function getSpotRef() {
   if (!ENABLED) return null;
 
   const a3 = a3MatrizWs.getDolarUsaUlt();
+  if (a3?._stale) {
+    a3MatrizWs.forceReconnect();
+  }
+
   if (a3?.price != null && !a3._stale) {
     spotRefCache = a3;
     spotRefCachedAt = Date.now();

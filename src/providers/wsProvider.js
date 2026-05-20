@@ -25,6 +25,13 @@ const priceCache = new Map();
 let ws           = null;
 let wsReady      = false;
 let reconnectTimer = null;
+let watchdogTimer = null;
+let lastMessageAt = 0;
+let connectedAt = 0;
+
+const WS_STALE_MS = Number(process.env.PRIMARY_WS_STALE_MS) || 90_000;
+const WS_WATCHDOG_MS = 30_000;
+const WS_MAX_SESSION_MS = Number(process.env.PRIMARY_WS_MAX_SESSION_MS) || 20 * 60_000;
 
 // ── Obtener cookie de sesión (auth para WebSocket — Spring Security)
 async function getCookie() {
@@ -72,11 +79,15 @@ async function connect() {
 
     ws.on('open', () => {
       wsReady = true;
+      connectedAt = Date.now();
+      touchActivity();
+      startWatchdog();
       subscribe(symbols);
       console.log(`[WS] Conectado a ${WS_URL} | Suscripto a: ${symbols.join(', ')}`);
     });
 
     ws.on('message', raw => {
+      touchActivity();
       try {
         const msg = JSON.parse(raw);
         if (msg.type !== 'Md') return;
@@ -98,14 +109,16 @@ async function connect() {
       } catch { /* ignorar mensajes no parseables */ }
     });
 
-    ws.on('close', (code, reason) => {
+    ws.on('close', (code) => {
       wsReady = false;
+      stopWatchdog();
       console.log(`[WS] Desconectado (${code}). Reconectando en 5s…`);
       scheduleReconnect(5000);
     });
 
     ws.on('error', err => {
       wsReady = false;
+      stopWatchdog();
       console.warn(`[WS] Error: ${err.message}. Reconectando en 10s…`);
       scheduleReconnect(10000);
     });
@@ -121,6 +134,57 @@ function scheduleReconnect(ms) {
   reconnectTimer = setTimeout(() => connect(), ms);
 }
 
+function touchActivity() {
+  lastMessageAt = Date.now();
+}
+
+function stopWatchdog() {
+  if (watchdogTimer) {
+    clearInterval(watchdogTimer);
+    watchdogTimer = null;
+  }
+}
+
+function startWatchdog() {
+  stopWatchdog();
+  watchdogTimer = setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    const silent = lastMessageAt > 0 && now - lastMessageAt > WS_STALE_MS;
+    const sessionOld = connectedAt > 0 && now - connectedAt > WS_MAX_SESSION_MS;
+    if (silent || sessionOld) {
+      console.warn('[WS] Watchdog: reconectando Primary…');
+      forceReconnect();
+    }
+  }, WS_WATCHDOG_MS);
+}
+
+let lastForceReconnectAt = 0;
+
+function forceReconnect() {
+  const now = Date.now();
+  if (now - lastForceReconnectAt < 45_000) return;
+  lastForceReconnectAt = now;
+
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  stopWatchdog();
+  wsReady = false;
+  connectedAt = 0;
+  if (ws) {
+    try {
+      ws.removeAllListeners();
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.terminate();
+      }
+    } catch { /* noop */ }
+    ws = null;
+  }
+  scheduleReconnect(500);
+}
+
 // ── API pública
 
 /**
@@ -131,10 +195,10 @@ function isConnected() { return wsReady; }
 /**
  * Último (LA) del contrato DLR activo — mismo campo "Últ" que A3 futuros financieros.
  */
-function getLatestSpot() {
+function getLatestSpot(maxAgeMs = 3 * 60_000) {
   const sym = getActiveSpotSymbol();
   const entry = priceCache.get(sym);
-  if (!entry || Date.now() - entry.updatedAt > 60_000) return null;
+  if (!entry || Date.now() - entry.updatedAt > maxAgeMs) return null;
   if (entry.lastPrice == null) return null;
   return {
     symbol: sym,
@@ -162,4 +226,10 @@ function getAllCached() {
 // Iniciar conexión al cargar el módulo
 connect();
 
-module.exports = { isConnected, getLatestSpot, getCachedContract, getAllCached };
+module.exports = {
+  isConnected,
+  getLatestSpot,
+  getCachedContract,
+  getAllCached,
+  forceReconnect,
+};

@@ -752,6 +752,8 @@
   let fxChart = null;
   let previousFxChart = null;
   let fxErrorCount = 0;
+  let usdStaleStreak = 0;
+  let lastUsdVenta = null;
   let lastNewsItems = [];
 
   // ── Barra de progreso ──
@@ -1247,13 +1249,29 @@
   }
 
   // ── Fetch FX ──
-  async function fetchFX() {
+  async function fetchFX(opts = {}) {
     try {
-      const res = await fetch('/api/fx');
+      const url = opts.reconnect ? '/api/fx?reconnect=1' : '/api/fx';
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
       const { usd, eur, mep, spreadMepMayorista, forexGlobal } = json.data;
+
+      if (usd && isTradingHours() && !opts.reconnect) {
+        const stuck = usd._stale || (lastUsdVenta != null && usd.venta === lastUsdVenta);
+        usdStaleStreak = stuck ? usdStaleStreak + 1 : 0;
+        if (usdStaleStreak >= 6) {
+          usdStaleStreak = 0;
+          await fetchFX({ reconnect: true });
+          return;
+        }
+        lastUsdVenta = usd.venta;
+      } else if (!usd?._stale) {
+        usdStaleStreak = 0;
+        lastUsdVenta = usd?.venta ?? null;
+      }
+
       if (usd) renderUSD(usd);
       if (eur) renderEUR(eur);
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });

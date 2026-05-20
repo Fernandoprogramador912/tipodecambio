@@ -16,6 +16,8 @@ const {
   SUPABASE_ENABLED,
 } = require('./src/services/projectionHistoryService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
+const a3MatrizWs = require('./src/providers/a3MatrizWsProvider');
+const wsProvider = require('./src/providers/wsProvider');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -76,11 +78,22 @@ function validateJobSecret(req) {
 app.get('/api/fx', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
+    if (req.query.reconnect === '1') {
+      a3MatrizWs.forceReconnect();
+      wsProvider.forceReconnect();
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+
     const rates = await getRates();
+    const a3Age = a3MatrizWs.getLastMessageAgeMs();
     res.json({
       ok: true,
       data: rates,
       fetchedAt: new Date().toISOString(),
+      stream: {
+        a3Connected: a3MatrizWs.isConnected(),
+        a3LastMessageSec: a3Age != null ? Math.round(a3Age / 1000) : null,
+      },
     });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });

@@ -29,6 +29,15 @@ let cache = {
 let ws = null;
 let reconnectTimer = null;
 let connecting = false;
+let watchdogTimer = null;
+let lastMessageAt = 0;
+let connectedAt = 0;
+
+/** Sin mensajes WS → reconectar (A3 también se “traba” hasta F5). */
+const WS_STALE_MS = Number(process.env.A3_WS_STALE_MS) || 90_000;
+const WS_WATCHDOG_MS = 30_000;
+/** Reconexión preventiva periódica (similar a refrescar la pestaña de A3). */
+const WS_MAX_SESSION_MS = Number(process.env.A3_WS_MAX_SESSION_MS) || 20 * 60_000;
 
 /** Campos en tick M: (pipe-separated). Índices verificados con A3 en vivo. */
 const LST_FIELD_INDEX = 6;
@@ -65,7 +74,62 @@ function applyTick(tick) {
   };
 }
 
+function touchActivity() {
+  lastMessageAt = Date.now();
+}
+
+function stopWatchdog() {
+  if (watchdogTimer) {
+    clearInterval(watchdogTimer);
+    watchdogTimer = null;
+  }
+}
+
+function startWatchdog() {
+  stopWatchdog();
+  watchdogTimer = setInterval(() => {
+    if (!ENABLED || !ws || ws.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    const silent = lastMessageAt > 0 && now - lastMessageAt > WS_STALE_MS;
+    const sessionOld = connectedAt > 0 && now - connectedAt > WS_MAX_SESSION_MS;
+    if (silent || sessionOld) {
+      const reason = silent
+        ? `sin mensajes ${Math.round((now - lastMessageAt) / 1000)}s`
+        : `sesión > ${Math.round(WS_MAX_SESSION_MS / 60000)} min`;
+      console.warn(`[A3-WS] Watchdog: ${reason} — reconectando…`);
+      forceReconnect();
+    }
+  }, WS_WATCHDOG_MS);
+}
+
+let lastForceReconnectAt = 0;
+
+function forceReconnect() {
+  const now = Date.now();
+  if (now - lastForceReconnectAt < 45_000) return;
+  lastForceReconnectAt = now;
+
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  stopWatchdog();
+  connecting = false;
+  connectedAt = 0;
+  if (ws) {
+    try {
+      ws.removeAllListeners();
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.terminate();
+      }
+    } catch { /* noop */ }
+    ws = null;
+  }
+  scheduleReconnect(500);
+}
+
 function handleMessage(raw) {
+  touchActivity();
   const text = raw.toString().trim();
   if (!text) return;
 
@@ -123,6 +187,9 @@ async function connect() {
 
     ws.on('open', () => {
       connecting = false;
+      connectedAt = Date.now();
+      touchActivity();
+      startWatchdog();
       ws.send(JSON.stringify({
         _req: 'S',
         topicType: 'md',
@@ -136,11 +203,13 @@ async function connect() {
 
     ws.on('close', () => {
       connecting = false;
+      stopWatchdog();
       scheduleReconnect(5000);
     });
 
     ws.on('error', () => {
       connecting = false;
+      stopWatchdog();
       scheduleReconnect(10000);
     });
   } catch (err) {
@@ -199,6 +268,16 @@ function isConnected() {
   return ws?.readyState === WebSocket.OPEN;
 }
 
+function getLastMessageAgeMs() {
+  return lastMessageAt > 0 ? Date.now() - lastMessageAt : null;
+}
+
 if (ENABLED) connect();
 
-module.exports = { getDolarUsaUlt, isConnected, MD_TOPIC };
+module.exports = {
+  getDolarUsaUlt,
+  isConnected,
+  getLastMessageAgeMs,
+  forceReconnect,
+  MD_TOPIC,
+};
