@@ -154,17 +154,21 @@ async function connect() {
  * Último de A3 (encabezado Dólar USA / DLR SPOT).
  */
 function getDolarUsaUlt(maxAgeMs = 5 * 60_000) {
-  if (cache.price == null) return null;
-  if (Date.now() - cache.updatedAt > maxAgeMs) return null;
+  const age = Date.now() - cache.updatedAt;
+  const live = cache.price != null && cache.updatedAt > 0 && age <= maxAgeMs;
+  const price = live ? cache.price : (cache.closePrice ?? cache.price);
+  if (price == null) return null;
+
   return {
     symbol: 'DLR/SPOT',
-    price: cache.price,
+    price,
     bid: cache.bid,
     ask: cache.ask,
     asOf: cache.asOf ? new Date(cache.asOf).toISOString() : new Date(cache.updatedAt).toISOString(),
     closePrice: cache.closePrice,
     closeDate: cache.closeDate,
-    fuente: 'A3 Matriz (DLR/SPOT)',
+    fuente: live ? 'A3 Matriz (DLR/SPOT)' : 'A3 Matriz (cierre)',
+    _stale: !live,
   };
 }
 

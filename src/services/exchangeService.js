@@ -68,24 +68,28 @@ async function fetchUltimoCierre(spot) {
   return { cierreValor: null, cierreFecha: null, cierreFuente: null };
 }
 
-/** Dólar mayorista en UI = Últ del encabezado "Dólar USA" en A3 (DLR/SPOT), solo fuente A3. */
+/** Dólar mayorista en UI = Últ A3 en rueda; fuera de rueda → último cierre (A3/Ámbito/DolarApi). */
 async function fetchMayoristaFromA3() {
   const spot = await getSpotRef();
-  if (!spot?.price) {
-    throw new Error('Sin cotización A3 (esperando DLR/SPOT en WebSocket Matriz)');
+  const cierre = await fetchUltimoCierre(spot);
+  const venta = spot?.price ?? cierre.cierreValor ?? null;
+
+  if (venta == null) {
+    throw new Error('Sin cotización mayorista (A3 ni cierre auxiliar disponible)');
   }
 
-  const cierre = await fetchUltimoCierre(spot);
+  const fromLive = spot?.price != null && !spot?._stale;
 
   return {
     nombre: 'Mayorista',
-    venta: spot.price,
-    fechaActualizacion: spot.asOf ?? new Date().toISOString(),
-    fuente: spot.fuente || 'A3',
-    cierreValor: cierre.cierreValor,
+    venta,
+    fechaActualizacion: spot?.asOf ?? new Date().toISOString(),
+    fuente: fromLive ? (spot.fuente || 'A3') : (cierre.cierreFuente || spot?.fuente || 'Cierre'),
+    cierreValor: cierre.cierreValor ?? venta,
     cierreFecha: cierre.cierreFecha,
     cierreFuente: cierre.cierreFuente,
-    _fromA3: true,
+    _fromA3: fromLive,
+    _fromCierre: !fromLive,
   };
 }
 

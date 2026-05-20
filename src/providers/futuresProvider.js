@@ -188,7 +188,17 @@ async function getSpotRef() {
   if (live?.price != null) {
     spotRefCache = live;
     spotRefCachedAt = Date.now();
-    return live;
+    return {
+      symbol: live.symbol,
+      price: live.price,
+      bid: live.bid,
+      ask: live.ask,
+      asOf: live.asOf,
+      closePrice: live.closePrice,
+      closeDate: live.closeDate,
+      fuente: live.fuente,
+      _stale: live._stale,
+    };
   }
 
   try {

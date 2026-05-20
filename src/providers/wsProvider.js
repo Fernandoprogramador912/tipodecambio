@@ -65,7 +65,7 @@ async function connect() {
     const cookie = await getCookie();
     const symbols = getWatchList();
 
-    ws = new WebSocket(WS_URL, null, {
+    ws = new WebSocket(WS_URL, {
       headers: { Cookie: cookie },
       handshakeTimeout: 10000,
     });
