@@ -78,18 +78,24 @@ async function fetchMayoristaFromA3() {
     throw new Error('Sin cotización mayorista (A3 ni cierre auxiliar disponible)');
   }
 
-  const fromLive = spot?.price != null && !spot?._stale;
+  const fromLive = spot?.price != null && !spot?._stale && !spot?._fromClose;
+  const fromLastTick = spot?.price != null && spot?._stale && !spot?._fromClose;
 
   return {
     nombre: 'Mayorista',
     venta,
     fechaActualizacion: spot?.asOf ?? new Date().toISOString(),
-    fuente: fromLive ? (spot.fuente || 'A3') : (cierre.cierreFuente || spot?.fuente || 'Cierre'),
+    fuente: fromLive
+      ? (spot.fuente || 'A3')
+      : fromLastTick
+        ? (spot.fuente || 'A3')
+        : (cierre.cierreFuente || spot?.fuente || 'Cierre'),
     cierreValor: cierre.cierreValor ?? venta,
     cierreFecha: cierre.cierreFecha,
     cierreFuente: cierre.cierreFuente,
-    _fromA3: fromLive,
-    _fromCierre: !fromLive,
+    _fromA3: fromLive || fromLastTick,
+    _fromCierre: !fromLive && !fromLastTick,
+    _stale: Boolean(spot?._stale && !fromLive),
   };
 }
 

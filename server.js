@@ -12,6 +12,7 @@ const {
   recordClose,
   getHistory,
   getTodayProjection,
+  isAfterDailyProjectionTime,
   SUPABASE_ENABLED,
 } = require('./src/services/projectionHistoryService');
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
@@ -95,12 +96,33 @@ app.get('/api/projection', async (req, res) => {
         ok: true,
         data: saved.projection,
         stored: true,
+        locked: true,
         storage: SUPABASE_ENABLED ? 'supabase' : 'local-file',
+        savedAt: saved.savedAt || saved.projection.generatedAt || null,
       });
     }
 
-    const { projection } = await buildProjectionSnapshot('preview');
-    res.json({ ok: true, data: projection, stored: false, preview: true });
+    // Antes de las 9:00 ART: vista previa orientativa (no es la proyección oficial del día).
+    if (!isAfterDailyProjectionTime()) {
+      const { projection } = await buildProjectionSnapshot('preview');
+      return res.json({
+        ok: true,
+        data: projection,
+        stored: false,
+        locked: false,
+        preview: true,
+      });
+    }
+
+    // Después de las 9:00: no recalcular con TC en vivo; esperar el job diario.
+    return res.json({
+      ok: true,
+      stored: false,
+      locked: false,
+      pending: true,
+      data: null,
+      message: 'La proyección oficial del día se registra a las 9:00 (ART). Todavía no está disponible.',
+    });
   } catch (err) {
     res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }

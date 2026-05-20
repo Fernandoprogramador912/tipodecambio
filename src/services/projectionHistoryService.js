@@ -65,6 +65,14 @@ function todayART() {
   return art.toISOString().slice(0, 10);
 }
 
+/** Después de las 9:00 ART solo se sirve la proyección guardada (job diario). */
+function isAfterDailyProjectionTime() {
+  const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const h = art.getUTCHours();
+  const m = art.getUTCMinutes();
+  return h > 9 || (h === 9 && m >= 0);
+}
+
 function projectionDateFromRow(row) {
   return row.projection_date || row.date;
 }
@@ -358,5 +366,6 @@ module.exports = {
   recordClose,
   getHistory,
   getTodayProjection,
+  isAfterDailyProjectionTime,
   SUPABASE_ENABLED,
 };

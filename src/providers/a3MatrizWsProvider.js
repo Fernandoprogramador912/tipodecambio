@@ -153,23 +153,46 @@ async function connect() {
 /**
  * Último de A3 (encabezado Dólar USA / DLR SPOT).
  */
-function getDolarUsaUlt(maxAgeMs = 5 * 60_000) {
-  const age = Date.now() - cache.updatedAt;
-  const live = cache.price != null && cache.updatedAt > 0 && age <= maxAgeMs;
-  const price = live ? cache.price : (cache.closePrice ?? cache.price);
-  if (price == null) return null;
+/** Tick fresco (para lógica “en vivo”). */
+const LIVE_FRESH_MS = 5 * 60 * 1000;
+/** Último tick A3 aún válido para mostrar en rueda aunque no haya operaciones nuevas. */
+const LIVE_RETAIN_MS = 6 * 60 * 60 * 1000;
 
-  return {
-    symbol: 'DLR/SPOT',
-    price,
-    bid: cache.bid,
-    ask: cache.ask,
-    asOf: cache.asOf ? new Date(cache.asOf).toISOString() : new Date(cache.updatedAt).toISOString(),
-    closePrice: cache.closePrice,
-    closeDate: cache.closeDate,
-    fuente: live ? 'A3 Matriz (DLR/SPOT)' : 'A3 Matriz (cierre)',
-    _stale: !live,
-  };
+function getDolarUsaUlt() {
+  const age = cache.updatedAt > 0 ? Date.now() - cache.updatedAt : Infinity;
+  const hasTick = cache.price != null && age <= LIVE_RETAIN_MS;
+
+  if (hasTick) {
+    return {
+      symbol: 'DLR/SPOT',
+      price: cache.price,
+      bid: cache.bid,
+      ask: cache.ask,
+      asOf: cache.asOf ? new Date(cache.asOf).toISOString() : new Date(cache.updatedAt).toISOString(),
+      closePrice: cache.closePrice,
+      closeDate: cache.closeDate,
+      fuente: 'A3 Matriz (DLR/SPOT)',
+      _stale: age > LIVE_FRESH_MS,
+      _fromClose: false,
+    };
+  }
+
+  if (cache.closePrice != null) {
+    return {
+      symbol: 'DLR/SPOT',
+      price: cache.closePrice,
+      bid: cache.bid,
+      ask: cache.ask,
+      asOf: cache.closeDate ? new Date(cache.closeDate).toISOString() : null,
+      closePrice: cache.closePrice,
+      closeDate: cache.closeDate,
+      fuente: 'A3 Matriz (cierre)',
+      _stale: true,
+      _fromClose: true,
+    };
+  }
+
+  return null;
 }
 
 function isConnected() {

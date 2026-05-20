@@ -217,6 +217,7 @@
       border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .75rem;
       flex-wrap: wrap; gap: .2rem;
     }
+    .usd-stale-hint { color: var(--amber, #d4a017); font-size: .62rem; }
     /* ── Card EUR (pequeño) ── */
     .eur-card {
       background: var(--surface);
@@ -356,6 +357,12 @@
 
     .proj-label { font-size: 1.1rem; font-weight: 700; }
     .proj-score { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
+    .proj-lock-badge {
+      display: inline-block; margin-left: .35rem; padding: .1rem .4rem;
+      border-radius: 4px; font-size: .62rem; font-weight: 600;
+      background: rgba(88,166,255,.15); color: var(--blue);
+    }
+    .proj-lock-badge.preview { background: rgba(210,153,34,.12); color: #d29922; }
 
     .proj-range {
       text-align: right;
@@ -922,6 +929,8 @@
       ${cierreLine ? `<div class="usd-cierre">${cierreLine}</div>` : ''}
       <div class="usd-footer">
         <span>${r.fuente || 'Fuente'}: ${fmtDate(r.fechaActualizacion)}</span>
+        ${r._stale ? '<span class="usd-stale-hint"> · sin tick nuevo (último A3)</span>' : ''}
+        ${r._fromCierre ? '<span class="usd-stale-hint"> · cierre de rueda</span>' : ''}
       </div>`;
   }
 
@@ -940,8 +949,27 @@
       <div class="eur-footer">Act: ${fmtDate(r.fechaActualizacion)} · ${r.fuente}</div>`;
   }
 
+  let projectionLocked = false;
+
+  function renderProjectionPending(message) {
+    const card = document.getElementById('projCard');
+    card.className = 'proj-card neutro';
+    card.classList.remove('skeleton');
+    card.innerHTML = `
+      <div class="proj-header">
+        <div class="proj-direction">
+          <div class="proj-arrow neutro">⏳</div>
+          <div>
+            <div class="proj-label">Proyección del día pendiente</div>
+            <div class="proj-score">Se fija a las 9:00 ART · no se actualiza con el TC en vivo</div>
+          </div>
+        </div>
+      </div>
+      <div class="proj-recommendation">${escHtml(message || 'Aún no hay proyección registrada para hoy.')}</div>`;
+  }
+
   // ── Render Proyección ──
-  function renderProjection(p) {
+  function renderProjection(p, meta = {}) {
     const card = document.getElementById('projCard');
     card.classList.remove('skeleton');
 
@@ -952,6 +980,12 @@
     const estimatedMoveARS = p.estimatedMoveARS ?? (
       p.estimated != null && p.spot != null ? p.estimated - p.spot : null
     );
+    const spotLabel = meta.stored
+      ? 'Spot al registro (9:00)'
+      : (meta.preview ? 'Spot de referencia (previa)' : 'Spot de referencia');
+    const lockBadge = meta.stored
+      ? '<span class="proj-lock-badge">Fija del día · 9:00 ART</span>'
+      : (meta.preview ? '<span class="proj-lock-badge preview">Vista previa · no oficial</span>' : '');
 
     card.className = `proj-card ${colorClass}`;
 
@@ -967,14 +1001,14 @@
           <div class="proj-arrow ${colorClass}">${dir.arrow}</div>
           <div>
             <div class="proj-label">${dir.label}</div>
-            <div class="proj-score">${p.dayName} · Rueda: ${p.session.label}</div>
+            <div class="proj-score">${p.dayName} · ${p.session.label} ${lockBadge}</div>
           </div>
         </div>
         <div class="proj-range">
           <div>Variación estimada: <strong>${p.variacionEstimada}</strong></div>
           <div>Movimiento estimado: <strong>${estimatedMoveARS >= 0 ? '+' : ''}$${fmt(estimatedMoveARS)}</strong></div>
           <div>Rango de cierre: <strong>$${p.rangeMin.toLocaleString('es-AR')} – $${p.rangeMax.toLocaleString('es-AR')}</strong></div>
-          <div>Spot actual: $${fmt(p.spot)}</div>
+          <div>${spotLabel}: $${fmt(p.spot)}</div>
         </div>
       </div>
       <div class="proj-signals">${signalsHtml}</div>
@@ -1510,10 +1544,22 @@
 
   // ── Fetch Proyección ──
   async function fetchProjection() {
+    if (projectionLocked) return;
     try {
       const res  = await fetch('/api/projection');
       const json = await res.json();
-      if (json.ok) renderProjection(json.data);
+      if (!json.ok) return;
+      if (json.pending) {
+        renderProjectionPending(json.message);
+        return;
+      }
+      if (json.data) {
+        if (json.stored || json.locked) projectionLocked = true;
+        renderProjection(json.data, {
+          stored: Boolean(json.stored || json.locked),
+          preview: Boolean(json.preview),
+        });
+      }
     } catch {}
   }
 
@@ -1539,11 +1585,7 @@
       startProgressBar(REFRESH_INTERVAL);
     }, REFRESH_INTERVAL);
 
-    // Proyección: refrescar cada 2 minutos dentro del horario
-    setInterval(() => {
-      if (!isTradingHours()) return;
-      fetchProjection();
-    }, 2 * 60 * 1000);
+    // Proyección: una sola carga (fija a las 9:00 ART; no sigue al TC en vivo).
   }
 
   init().then(() => {

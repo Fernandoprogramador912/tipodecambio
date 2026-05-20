@@ -181,52 +181,88 @@ async function getFutures() {
  * Últ del encabezado Dólar USA en A3 (DLR/SPOT vía WebSocket Matriz).
  * Primary REST solo complementa bid/ask si hay sesión.
  */
+function mapSpotRef(live) {
+  return {
+    symbol: live.symbol,
+    price: live.price,
+    bid: live.bid,
+    ask: live.ask,
+    asOf: live.asOf,
+    closePrice: live.closePrice,
+    closeDate: live.closeDate,
+    fuente: live.fuente,
+    _stale: live._stale,
+    _fromClose: live._fromClose,
+  };
+}
+
+async function fetchRestSpotRef() {
+  const token = await authenticate();
+  const sym = await resolveSpotSymbol();
+  const data = await fetchContractData(token, sym);
+
+  if (data.lastPrice == null && data.bid == null && data.ask == null) {
+    return spotRefCache?.symbol === sym ? mapSpotRef(spotRefCache) : null;
+  }
+
+  const result = {
+    symbol: sym,
+    price: data.lastPrice,
+    bid: data.bid ?? null,
+    ask: data.ask ?? null,
+    asOf: new Date().toISOString(),
+    fuente: 'Matba-Rofex',
+    _stale: false,
+    _fromClose: false,
+  };
+  if (result.price != null) {
+    spotRefCache = result;
+    spotRefCachedAt = Date.now();
+  }
+  return result.price != null ? result : (spotRefCache ? mapSpotRef(spotRefCache) : null);
+}
+
 async function getSpotRef() {
   if (!ENABLED) return null;
 
-  const live = a3MatrizWs.getDolarUsaUlt();
-  if (live?.price != null) {
-    spotRefCache = live;
+  const a3 = a3MatrizWs.getDolarUsaUlt();
+  if (a3?.price != null && !a3._stale) {
+    spotRefCache = a3;
     spotRefCachedAt = Date.now();
-    return {
-      symbol: live.symbol,
-      price: live.price,
-      bid: live.bid,
-      ask: live.ask,
-      asOf: live.asOf,
-      closePrice: live.closePrice,
-      closeDate: live.closeDate,
-      fuente: live.fuente,
-      _stale: live._stale,
-    };
+    return mapSpotRef(a3);
   }
 
   try {
-    const token = await authenticate();
-    const sym = await resolveSpotSymbol();
-    const data = await fetchContractData(token, sym);
-
-    if (data.lastPrice == null && data.bid == null && data.ask == null) {
-      return spotRefCache?.symbol === sym ? spotRefCache : null;
-    }
-
-    const result = {
-      symbol: sym,
-      price: data.lastPrice,
-      bid: data.bid ?? null,
-      ask: data.ask ?? null,
-      asOf: new Date().toISOString(),
-      fuente: 'Matba-Rofex',
-    };
-    if (result.price != null) {
+    const wsSpot = wsProvider.getLatestSpot();
+    if (wsSpot?.price != null) {
+      const result = {
+        symbol: wsSpot.symbol,
+        price: wsSpot.price,
+        bid: wsSpot.bid,
+        ask: wsSpot.ask,
+        asOf: new Date().toISOString(),
+        fuente: wsSpot.fuente,
+        closePrice: a3?.closePrice,
+        closeDate: a3?.closeDate,
+        _stale: false,
+        _fromClose: false,
+      };
       spotRefCache = result;
       spotRefCachedAt = Date.now();
+      return result;
     }
-    return result.price != null ? result : spotRefCache;
+
+    const rest = await fetchRestSpotRef();
+    if (rest?.price != null) return rest;
   } catch (err) {
     console.warn('[getSpotRef]', err.message);
-    return spotRefCache ?? null;
   }
+
+  if (a3?.price != null) {
+    return mapSpotRef(a3);
+  }
+
+  return spotRefCache ? mapSpotRef(spotRefCache) : null;
 }
 
 module.exports = { getFutures, getSpotRef, ENABLED };
