@@ -41,7 +41,7 @@ function parseSectionHtml(html, source) {
       title,
       summary: '',
       link,
-      pubDate: new Date().toISOString(),
+      pubDate: null,
       source,
     });
   }

@@ -673,7 +673,7 @@
 
   <!-- NOTICIAS — visibles al hacer scroll -->
   <section>
-    <div class="section-title">Noticias financieras con impacto cambiario</div>
+    <div class="section-title">Noticias financieras con impacto cambiario <span style="font-weight:400;color:var(--muted);font-size:.78rem;">· últimas 24 h</span></div>
     <div class="news-grid" id="newsGrid">
       <div class="empty-state skeleton">Cargando noticias...</div>
     </div>
@@ -994,7 +994,7 @@
   function renderNews(items) {
     const grid = document.getElementById('newsGrid');
     if (!items || items.length === 0) {
-      grid.innerHTML = `<div class="empty-state"><p>No se encontraron noticias relevantes en este momento.</p></div>`;
+      grid.innerHTML = `<div class="empty-state"><p>No hay noticias relevantes publicadas en las últimas 24 horas.</p></div>`;
       return;
     }
     const labels = { muy_alto:'Impacto muy alto', alto:'Impacto alto', medio:'Impacto medio', bajo:'Impacto bajo' };

@@ -26,6 +26,22 @@ const RSS_FEEDS = [
 ];
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const NEWS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function parsePubDateMs(raw) {
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Solo noticias publicadas en las últimas 24 horas (fecha RSS/HTML válida). */
+function filterLast24Hours(items) {
+  const cutoff = Date.now() - NEWS_MAX_AGE_MS;
+  return items.filter(item => {
+    const t = parsePubDateMs(item.pubDate);
+    return t != null && t >= cutoff;
+  });
+}
 
 let cache = {
   data: null,
@@ -55,9 +71,11 @@ async function fetchAllNews() {
   ]);
 
   const rssItems = rssResults.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
-  const allItems = [...rssItems, ...iProItems, ...cronistaItems].filter(item => item.link && item.title);
+  const allItems = [...rssItems, ...iProItems, ...cronistaItems]
+    .filter(item => item.link && item.title);
+  const recentItems = filterLast24Hours(allItems);
 
-  const linked = dedupeByLink(allItems);
+  const linked = dedupeByLink(recentItems);
   const scored = scoreItems(linked);
   const deduped = dedupeSimilar(scored);
   return filterAndRank(deduped, { minScore: 1, limit: 30 });
