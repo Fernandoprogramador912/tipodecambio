@@ -29,5 +29,7 @@ services:
         sync: false
       - key: SUPABASE_DAILY_PROJECTIONS_TABLE
         value: daily_projections
+      - key: SUPABASE_TC_INTRADAY_TABLE
+        value: tc_intraday_days
       - key: PROJECTION_JOB_SECRET
         sync: false

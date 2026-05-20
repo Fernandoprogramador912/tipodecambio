@@ -266,6 +266,39 @@
     .previous-chart-title { font-size: .72rem; font-weight: 700; color: var(--text); }
     .previous-chart-subtitle { font-size: .62rem; color: var(--muted); }
     .previous-chart-wrapper { position: relative; height: 92px; }
+    .tc-history-panel {
+      margin-top: .85rem;
+      padding-top: .75rem;
+      border-top: 1px solid var(--border);
+    }
+    .tc-history-header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem;
+    }
+    .tc-history-title { font-size: .75rem; font-weight: 700; color: var(--text); }
+    .tc-history-hint { font-size: .62rem; color: var(--muted); }
+    .tc-history-dates {
+      display: flex; flex-wrap: wrap; gap: .4rem;
+    }
+    .tc-history-chip {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      font-size: .68rem;
+      font-weight: 600;
+      padding: .28rem .55rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .tc-history-chip:hover { border-color: var(--blue); color: var(--blue); }
+    .tc-history-chip.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: rgba(88,166,255,.12);
+    }
+    .tc-history-chip .pts { opacity: .75; font-weight: 500; margin-left: .2rem; }
+    .tc-history-empty { font-size: .7rem; color: var(--muted); }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -634,14 +667,13 @@
             <canvas id="fxChart"></canvas>
           </div>
         </div>
-        <div class="previous-chart-panel" id="previousChartPanel">
-          <div class="previous-chart-header">
-            <div class="previous-chart-title">Rueda anterior</div>
-            <div class="previous-chart-subtitle" id="previousChartSubtitle">Sin datos guardados todavía</div>
+        <div class="tc-history-panel" id="tcHistoryPanel">
+          <div class="tc-history-header">
+            <div class="tc-history-title">Historial de rueda · comparar días</div>
+            <div class="tc-history-hint" id="tcHistoryHint">Desde hoy hacia adelante · tocá para elegir (máx. 4)</div>
           </div>
-          <div class="previous-chart-empty" id="previousChartEmpty">Se completa cuando haya una rueda previa registrada en este navegador.</div>
-          <div class="previous-chart-wrapper" id="previousChartWrapper" style="display:none">
-            <canvas id="previousFxChart"></canvas>
+          <div class="tc-history-dates" id="tcHistoryDates">
+            <span class="tc-history-empty">Cargando días guardados...</span>
           </div>
         </div>
       </div>
@@ -750,7 +782,9 @@
   }
 
   let fxChart = null;
-  let previousFxChart = null;
+  let tcHistoryIndex = { startDate: null, days: [] };
+  const tcHistorySelected = new Set();
+  const TC_CHART_COLORS = ['#58a6ff', '#f0883e', '#3fb950', '#d2a8ff', '#f85149'];
   let fxErrorCount = 0;
   let usdStaleStreak = 0;
   let lastUsdVenta = null;
@@ -1183,15 +1217,23 @@
   }
 
   function buildChart(points) {
+    buildChartCompare([{ date: todayARTString(), points: points || [] }]);
+  }
+
+  function buildChartCompare(daySeries) {
     const noData  = document.getElementById('chartNoData');
     const wrapper = document.getElementById('chartWrapper');
     const subtitle = document.getElementById('chartSubtitle');
+    const title = document.getElementById('chartTitle');
 
-    const { slots, values, realValues, realCount } = normalizeChartPoints(points);
+    const valid = (daySeries || [])
+      .map(d => ({ date: d.date, ...normalizeChartPoints(d.points) }))
+      .filter(d => d.realCount > 0);
 
-    if (realCount === 0) {
+    if (valid.length === 0) {
       noData.style.display = 'flex';
       wrapper.style.display = 'none';
+      title.textContent = 'USD/ARS Mayorista — hoy';
       subtitle.textContent = 'El gráfico se construye durante la rueda (10:00–15:00 hs)';
       if (fxChart) { fxChart.destroy(); fxChart = null; }
       return;
@@ -1201,51 +1243,44 @@
     wrapper.style.display = 'block';
 
     const th = getChartTheme();
-    const chartData = makeIntradayChartData(slots, values, 'Venta USD/ARS', th);
-    const options = makeIntradayChartOptions(slots, realValues, th);
-    fxChart = updateChartInstance(fxChart, 'fxChart', chartData, options);
+    const slots = generateSlots();
+    const datasets = [];
+    const allReal = [];
 
-    const lastVal = realValues[realValues.length - 1];
-    const fixedNote = isChartRecordingHours() ? '' : ' · rueda cerrada, gráfico fijo hasta mañana';
-    subtitle.textContent = `${realCount} puntos registrados · última cotización $${fmt(lastVal)} (venta)${fixedNote}`;
-  }
+    valid.forEach((day, i) => {
+      allReal.push(...day.realValues);
+      const color = TC_CHART_COLORS[i % TC_CHART_COLORS.length];
+      datasets.push({
+        label: formatStoredDay(day.date),
+        data: day.values,
+        borderColor: color,
+        backgroundColor: color + '33',
+        borderWidth: 2.2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: false,
+        tension: 0.3,
+        spanGaps: true,
+      });
+    });
 
-  function buildPreviousChart(dayHistory) {
-    const empty = document.getElementById('previousChartEmpty');
-    const wrapper = document.getElementById('previousChartWrapper');
-    const subtitle = document.getElementById('previousChartSubtitle');
+    title.textContent = valid.length === 1
+      ? `USD/ARS Mayorista — ${formatStoredDay(valid[0].date)}`
+      : `USD/ARS Mayorista — ${valid.length} días`;
 
-    if (!dayHistory?.points?.length) {
-      empty.style.display = 'flex';
-      wrapper.style.display = 'none';
-      subtitle.textContent = 'Sin datos guardados todavía';
-      if (previousFxChart) { previousFxChart.destroy(); previousFxChart = null; }
-      return;
-    }
+    const options = makeIntradayChartOptions(slots, allReal, th, false);
+    options.plugins.legend = {
+      display: valid.length > 1,
+      labels: { color: th.muted, font: { size: 11 }, boxWidth: 12 },
+    };
 
-    const { slots, values, realValues, realCount } = normalizeChartPoints(dayHistory.points);
-    if (realCount === 0) {
-      empty.style.display = 'flex';
-      wrapper.style.display = 'none';
-      subtitle.textContent = `${formatStoredDay(dayHistory.date)} · sin puntos dentro de rueda`;
-      if (previousFxChart) { previousFxChart.destroy(); previousFxChart = null; }
-      return;
-    }
+    fxChart = updateChartInstance(fxChart, 'fxChart', { labels: slots, datasets }, options);
 
-    empty.style.display = 'none';
-    wrapper.style.display = 'block';
-
-    const th = getChartTheme();
-    const chartData = makeIntradayChartData(slots, values, 'Rueda anterior', th);
-    const options = makeIntradayChartOptions(slots, realValues, th, true);
-    previousFxChart = updateChartInstance(previousFxChart, 'previousFxChart', chartData, options);
-
-    const firstVal = realValues[0];
-    const lastVal = realValues[realValues.length - 1];
-    const delta = lastVal - firstVal;
-    const pct = firstVal ? (delta / firstVal) * 100 : 0;
-    const sign = delta > 0 ? '+' : '';
-    subtitle.textContent = `${formatStoredDay(dayHistory.date)} · ${realCount} puntos · ${sign}$${fmt(delta)} (${sign}${pct.toFixed(2)}%)`;
+    const lastDay = valid[valid.length - 1];
+    const lastVal = lastDay.realValues[lastDay.realValues.length - 1];
+    const fixedNote = isChartRecordingHours() ? '' : ' · rueda cerrada';
+    const totalPts = valid.reduce((n, d) => n + d.realCount, 0);
+    subtitle.textContent = `${totalPts} puntos · última $${fmt(lastVal)}${fixedNote}`;
   }
 
   // ── Fetch FX ──
@@ -1295,9 +1330,8 @@
     }
   }
 
-  // ── Historial en localStorage ──
+  // ── Historial intradiario (localStorage respaldo + servidor) ──
   const HISTORY_PREFIX = 'tcAR_history_';
-  const HISTORY_RETENTION_DAYS = 7;
   const LS_KEY = (dateStr = todayARTString()) => `${HISTORY_PREFIX}${dateStr}`;
 
   function todayARTString() {
@@ -1313,12 +1347,14 @@
   }
 
   function lsPruneOldDays() {
+    const start = tcHistoryIndex.startDate || todayARTString();
     try {
-      const keys = Object.keys(localStorage)
+      Object.keys(localStorage)
         .filter(key => key.startsWith(HISTORY_PREFIX))
-        .sort()
-        .reverse();
-      keys.slice(HISTORY_RETENTION_DAYS).forEach(key => localStorage.removeItem(key));
+        .forEach(key => {
+          const date = key.slice(HISTORY_PREFIX.length);
+          if (date < start) localStorage.removeItem(key);
+        });
     } catch {}
   }
 
@@ -1336,24 +1372,111 @@
     return points;
   }
 
-  function lsLoadPreviousDay() {
-    const today = todayARTString();
+  function lsCollectLocalDays() {
+    const days = {};
+    const start = tcHistoryIndex.startDate || todayARTString();
     try {
-      const previousKey = Object.keys(localStorage)
+      Object.keys(localStorage)
         .filter(key => key.startsWith(HISTORY_PREFIX))
-        .map(key => key.slice(HISTORY_PREFIX.length))
-        .filter(date => date < today && lsLoad(date).length > 0)
-        .sort()
-        .pop();
-      return previousKey ? { date: previousKey, points: lsLoad(previousKey) } : null;
+        .forEach(key => {
+          const date = key.slice(HISTORY_PREFIX.length);
+          if (date >= start) {
+            const pts = lsLoad(date);
+            if (pts.length) days[date] = pts;
+          }
+        });
+    } catch {}
+    return days;
+  }
+
+  async function syncTcHistoryToServer() {
+    const days = lsCollectLocalDays();
+    if (!Object.keys(days).length) return;
+    try {
+      await fetch('/api/tc-history/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days }),
+      });
+    } catch {}
+  }
+
+  function renderTcHistoryPicker() {
+    const wrap = document.getElementById('tcHistoryDates');
+    const days = tcHistoryIndex.days || [];
+    if (!days.length) {
+      wrap.innerHTML = '<span class="tc-history-empty">Sin días guardados aún. Se acumulan desde hoy en cada rueda.</span>';
+      return;
+    }
+    wrap.innerHTML = days.map(d => {
+      const active = tcHistorySelected.has(d.date) ? ' active' : '';
+      const pts = d.pointCount != null ? `<span class="pts">${d.pointCount} pts</span>` : '';
+      return `<button type="button" class="tc-history-chip${active}" data-date="${d.date}">${formatStoredDay(d.date)}${pts}</button>`;
+    }).join('');
+    wrap.querySelectorAll('.tc-history-chip').forEach(btn => {
+      btn.addEventListener('click', () => toggleTcHistoryDate(btn.dataset.date));
+    });
+  }
+
+  function toggleTcHistoryDate(date) {
+    if (!date) return;
+    if (tcHistorySelected.has(date)) {
+      if (tcHistorySelected.size > 1) tcHistorySelected.delete(date);
+    } else {
+      if (tcHistorySelected.size >= 4) return;
+      tcHistorySelected.add(date);
+    }
+    renderTcHistoryPicker();
+    refreshChartView();
+  }
+
+  async function fetchDayPoints(date) {
+    try {
+      const res = await fetch(`/api/tc-history/${date}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.ok && json.points?.length) return json.points;
+    } catch {}
+    return lsLoad(date);
+  }
+
+  async function refreshChartView() {
+    const dates = [...tcHistorySelected].sort();
+    if (!dates.length) {
+      buildChart([]);
+      return;
+    }
+    const series = await Promise.all(
+      dates.map(async date => ({ date, points: await fetchDayPoints(date) }))
+    );
+    buildChartCompare(series);
+  }
+
+  async function loadTcHistoryIndex() {
+    try {
+      const res = await fetch('/api/tc-history', { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.ok) return;
+      tcHistoryIndex = { startDate: json.startDate, days: json.days || [] };
+      tcHistorySelected.clear();
+      const today = todayARTString();
+      if (tcHistoryIndex.days.some(d => d.date === today)) {
+        tcHistorySelected.add(today);
+      } else if (tcHistoryIndex.days[0]) {
+        tcHistorySelected.add(tcHistoryIndex.days[0].date);
+      }
+      document.getElementById('tcHistoryHint').textContent =
+        `Desde ${formatStoredDay(json.startDate)} · ${json.days.length} día(s) en servidor`;
+      renderTcHistoryPicker();
+      await refreshChartView();
     } catch {
-      return null;
+      document.getElementById('tcHistoryDates').innerHTML =
+        '<span class="tc-history-empty">No se pudo cargar el historial.</span>';
     }
   }
 
-  function fetchHistory() {
-    buildChart(lsLoad());
-    buildPreviousChart(lsLoadPreviousDay());
+  async function fetchHistory() {
+    await refreshChartView();
+    renderTcHistoryPicker();
   }
 
   // ── Fetch Noticias ──
@@ -1583,8 +1706,9 @@
 
   // ── Init & loops ──
   async function init() {
-    await Promise.all([fetchFX(), fetchNews(), fetchHistory(), fetchProjection()]);
-    // Cargar historial de proyecciones siempre (independiente del horario)
+    await syncTcHistoryToServer();
+    await loadTcHistoryIndex();
+    await Promise.all([fetchFX(), fetchNews(), fetchProjection()]);
     fetchProjectionHistory();
   }
 

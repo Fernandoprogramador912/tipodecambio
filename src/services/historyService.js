@@ -1,7 +1,15 @@
-// El historial intradiario se maneja en el frontend (localStorage).
-// Este módulo queda como stub para mantener compatibilidad con exchangeService.
+const tcHistory = require('./tcIntradayHistoryService');
 
-function record() { /* no-op en serverless */ }
-function getTodayHistory() { return []; }
+function record(venta, compra, ts) {
+  if (venta == null || Number.isNaN(Number(venta))) return;
+  tcHistory.addPoint(venta, compra, ts).catch(err => {
+    console.warn('[tc-history]', err.message);
+  });
+}
+
+async function getTodayHistory() {
+  const day = await tcHistory.getDay(tcHistory.todayART());
+  return day.points || [];
+}
 
 module.exports = { record, getTodayHistory };

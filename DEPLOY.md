@@ -84,7 +84,14 @@ Si más adelante querés cero cold starts, se puede cambiar Render a plan Starte
 | `SUPABASE_URL` | Sí, para historial persistente |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sí, secreto de servidor |
 | `SUPABASE_DAILY_PROJECTIONS_TABLE` | `daily_projections` |
+| `SUPABASE_TC_INTRADAY_TABLE` | `tc_intraday_days` (gráfico por día) |
+| `TC_HISTORY_START_DATE` | Opcional; default = hoy (solo acumula desde esa fecha) |
 | `PROJECTION_JOB_SECRET` | Sí, mismo valor en Render y GitHub |
+
+### Historial del gráfico intradiario (Supabase)
+
+Ejecutá una vez en el SQL Editor el script `scripts/tc-intraday-supabase.sql`.  
+Cada rueda (10:00–15:00 ART) guarda puntos en `tc_intraday_days`. En el dashboard podés elegir uno o más días (máx. 4) para comparar curvas. **No hay datos de días anteriores al deploy** salvo que los tengas en `localStorage` del navegador (se sincronizan al abrir la página).
 
 ---
 

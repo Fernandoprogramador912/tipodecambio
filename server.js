@@ -18,6 +18,7 @@ const {
 const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/futuresProvider');
 const a3MatrizWs = require('./src/providers/a3MatrizWsProvider');
 const wsProvider = require('./src/providers/wsProvider');
+const tcIntradayHistory = require('./src/services/tcIntradayHistoryService');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -175,6 +176,55 @@ app.post('/api/projection/close', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'closePrice requerido' });
     }
     const result = await recordClose(Number(closePrice));
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- API: historial intradiario USD/ARS por día ---
+app.get('/api/tc-history', async (req, res) => {
+  try {
+    const index = await tcIntradayHistory.listDays();
+    res.json({ ok: true, ...index });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/tc-history/:date', async (req, res) => {
+  try {
+    const date = req.params.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ ok: false, error: 'Fecha inválida (YYYY-MM-DD)' });
+    }
+    const day = await tcIntradayHistory.getDay(date);
+    res.json({ ok: true, ...day });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tc-history/point', async (req, res) => {
+  try {
+    const venta = Number(req.body?.venta);
+    if (!Number.isFinite(venta)) {
+      return res.status(400).json({ ok: false, error: 'venta requerida' });
+    }
+    const result = await tcIntradayHistory.addPoint(
+      venta,
+      Number(req.body?.compra) || venta,
+      req.body?.ts
+    );
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tc-history/sync', async (req, res) => {
+  try {
+    const result = await tcIntradayHistory.syncDays(req.body?.days || {});
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
