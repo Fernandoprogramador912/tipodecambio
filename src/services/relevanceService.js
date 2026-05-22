@@ -79,7 +79,7 @@ const PRIORITY_SOURCE_BOOST = 3;
 function scoreItem(item) {
   let score = scoreText(item.title) + scoreText(item.summary);
   const src = item.source || '';
-  if (/iprofesional/i.test(src) || src === 'El Cronista') {
+  if (/iprofesional/i.test(src) || /infobae/i.test(src) || src === 'El Cronista') {
     score += PRIORITY_SOURCE_BOOST;
   }
   return { ...item, score, impact: getImpactLabel(score) };

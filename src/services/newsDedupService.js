@@ -62,12 +62,14 @@ function areTitlesSimilar(a, b) {
   if (!ta.length || !tb.length) return false;
 
   const jac = jaccard(ta, tb);
-  if (jac >= 0.58) return true;
+  if (jac >= 0.52) return true;
 
   const na = normalizeTitle(a);
   const nb = normalizeTitle(b);
-  if (na.length >= 40 && nb.length >= 40) {
+  if (na.length >= 28 && nb.length >= 28) {
     if (na.includes(nb) || nb.includes(na)) return true;
+    const prefixLen = Math.min(48, na.length, nb.length);
+    if (prefixLen >= 28 && na.slice(0, prefixLen) === nb.slice(0, prefixLen)) return true;
   }
 
   const shorter = ta.length < tb.length ? ta : tb;
@@ -89,7 +91,16 @@ function areItemsSimilar(a, b) {
   if (a.summary && b.summary) {
     const sa = titleTokens(a.summary).slice(0, 24);
     const sb = titleTokens(b.summary).slice(0, 24);
-    if (sa.length >= 8 && sb.length >= 8 && jaccard(sa, sb) >= 0.72) return true;
+    if (sa.length >= 8 && sb.length >= 8 && jaccard(sa, sb) >= 0.65) return true;
+  }
+
+  const titleA = titleTokens(a.title);
+  const titleB = titleTokens(b.title);
+  if (titleA.length >= 4 && titleB.length >= 4) {
+    const setB = new Set(titleB);
+    const shared = titleA.filter(t => setB.has(t)).length;
+    const minLen = Math.min(titleA.length, titleB.length);
+    if (shared >= 4 && shared / minLen >= 0.75) return true;
   }
 
   return false;

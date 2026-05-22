@@ -1,6 +1,7 @@
 const Parser = require('rss-parser');
 const { filterAndRank, scoreItems } = require('./relevanceService');
-const { dedupeByLink, dedupeSimilar } = require('./newsDedupService');
+const { dedupeNews } = require('./newsDedupService');
+const { fetchInfobaeNews } = require('../providers/infobaeProvider');
 const { fetchIprofesionalNews } = require('../providers/iprofesionalProvider');
 const { fetchCronistaNews } = require('../providers/cronistaProvider');
 
@@ -17,7 +18,6 @@ function stripHtml(html) {
 }
 
 const RSS_FEEDS = [
-  { url: 'https://www.infobae.com/feeds/rss/economia/', source: 'Infobae Economía' },
   { url: 'https://eleconomista.com.ar/economia/feed/', source: 'El Economista' },
   { url: 'https://eleconomista.com.ar/finanzas/feed/', source: 'El Economista Finanzas' },
   { url: 'https://www.ambito.com/rss/pages/economia.xml', source: 'Ámbito Financiero' },
@@ -64,20 +64,20 @@ async function fetchFeed(feed) {
 }
 
 async function fetchAllNews() {
-  const [rssResults, iProItems, cronistaItems] = await Promise.all([
+  const [rssResults, infobaeItems, iProItems, cronistaItems] = await Promise.all([
     Promise.allSettled(RSS_FEEDS.map(f => fetchFeed(f))),
+    fetchInfobaeNews(),
     fetchIprofesionalNews(),
     fetchCronistaNews(),
   ]);
 
   const rssItems = rssResults.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
-  const allItems = [...rssItems, ...iProItems, ...cronistaItems]
+  const allItems = [...rssItems, ...infobaeItems, ...iProItems, ...cronistaItems]
     .filter(item => item.link && item.title);
   const recentItems = filterLast24Hours(allItems);
 
-  const linked = dedupeByLink(recentItems);
-  const scored = scoreItems(linked);
-  const deduped = dedupeSimilar(scored);
+  const scored = scoreItems(recentItems);
+  const deduped = dedupeNews(scored);
   return filterAndRank(deduped, { minScore: 1, limit: 30 });
 }
 
