@@ -7,6 +7,25 @@ require('../config/mayoristaSource');
 const DOLAR_API_BASE = 'https://dolarapi.com/v1';
 const AMBITO_BASE = 'https://mercados.ambito.com';
 const CACHE_TTL_MS = FUTURES_ENABLED ? 2000 : 5000;
+const EUR_VENTA_ADJUST_ARS = Number(process.env.EUR_VENTA_ADJUST_ARS) || 2;
+
+/** EUR/ARS venta = último TC mayorista (USD) × EUR/USD (FX internacional) + ajuste fijo. */
+function buildEurVenta(usd, forexGlobal) {
+  const mayoristaVenta = usd?.venta;
+  const eurUsd = forexGlobal?.pairs?.find(p => p.pair === 'EUR/USD')?.rate;
+  if (mayoristaVenta == null || eurUsd == null) return null;
+
+  const venta = +(mayoristaVenta * eurUsd + EUR_VENTA_ADJUST_ARS).toFixed(2);
+  return {
+    nombre: 'Euro',
+    venta,
+    mayoristaUsd: mayoristaVenta,
+    eurUsd,
+    ajusteARS: EUR_VENTA_ADJUST_ARS,
+    fechaActualizacion: forexGlobal?.fetchedAt || new Date().toISOString(),
+    fuente: 'Mayorista × EUR/USD + $2',
+  };
+}
 
 let cierreCache = { valor: null, fecha: null, fuente: null, fetchedAt: 0 };
 const CIERRE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -119,29 +138,22 @@ async function fetchMayorista() {
 }
 
 async function fetchRates() {
-  const [usd, euro, mep] = await Promise.all([
+  const [usd, mep, forexGlobal] = await Promise.all([
     fetchMayorista(),
-    axios.get(`${DOLAR_API_BASE}/cotizaciones/eur`, { timeout: 5000 }).then(r => r.data),
     axios.get(`${DOLAR_API_BASE}/dolares/bolsa`, { timeout: 5000 }).then(r => r.data).catch(() => null),
+    getForexVsUsd().catch(() => null),
   ]);
 
-  const mepVenta = mep?.venta ?? null;
+  const mepCompra = mep?.compra ?? null;
   const mayoristaVenta = usd.venta ?? null;
-  const spreadMonto = mepVenta && mayoristaVenta ? +(mepVenta - mayoristaVenta).toFixed(2) : null;
-  const spreadPct = spreadMonto && mayoristaVenta
+  const spreadMonto = mepCompra && mayoristaVenta ? +(mepCompra - mayoristaVenta).toFixed(2) : null;
+  const spreadPct = spreadMonto != null && mayoristaVenta
     ? +(spreadMonto / mayoristaVenta * 100).toFixed(2)
     : null;
 
   return {
     usd,
-    eur: {
-      nombre: euro.nombre || 'Euro',
-      compra: euro.compra,
-      venta: euro.venta,
-      spread: euro.venta && euro.compra ? +(euro.venta - euro.compra).toFixed(4) : null,
-      fechaActualizacion: euro.fechaActualizacion,
-      fuente: 'DolarApi.com',
-    },
+    eur: buildEurVenta(usd, forexGlobal),
     mep: mep ? {
       nombre: 'MEP (Bolsa)',
       compra: mep.compra,
@@ -150,6 +162,7 @@ async function fetchRates() {
       fuente: 'DolarApi.com',
     } : null,
     spreadMepMayorista: { montoARS: spreadMonto, pct: spreadPct },
+    forexGlobal,
   };
 }
 
@@ -170,7 +183,8 @@ async function getRates() {
 
   if (cache.data && now - cache.fetchedAt < CACHE_TTL_MS) {
     const { usd: _u, ...rest } = cache.data;
-    const merged = { ...rest, usd, cached: false };
+    const eur = buildEurVenta(usd, rest.forexGlobal);
+    const merged = { ...rest, usd, eur, cached: true };
     if (usd?.venta) {
       record(usd.venta, usd.venta, usd.fechaActualizacion || new Date().toISOString());
     }
@@ -178,8 +192,7 @@ async function getRates() {
   }
 
   try {
-    const [eur, mep, forexGlobal] = await Promise.all([
-      axios.get(`${DOLAR_API_BASE}/cotizaciones/eur`, { timeout: 5000 }).then(r => r.data),
+    const [mep, forexGlobal] = await Promise.all([
       axios.get(`${DOLAR_API_BASE}/dolares/bolsa`, { timeout: 5000 }).then(r => r.data).catch(() => null),
       getForexVsUsd().catch(err => {
         console.warn('[forexGlobal]', err.message);
@@ -187,23 +200,16 @@ async function getRates() {
       }),
     ]);
 
-    const mepVenta = mep?.venta ?? null;
+    const mepCompra = mep?.compra ?? null;
     const mayoristaVenta = usd.venta ?? null;
-    const spreadMonto = mepVenta && mayoristaVenta ? +(mepVenta - mayoristaVenta).toFixed(2) : null;
-    const spreadPct = spreadMonto && mayoristaVenta
+    const spreadMonto = mepCompra && mayoristaVenta ? +(mepCompra - mayoristaVenta).toFixed(2) : null;
+    const spreadPct = spreadMonto != null && mayoristaVenta
       ? +(spreadMonto / mayoristaVenta * 100).toFixed(2)
       : null;
 
     const rates = {
       usd,
-      eur: {
-        nombre: eur.nombre || 'Euro',
-        compra: eur.compra,
-        venta: eur.venta,
-        spread: eur.venta && eur.compra ? +(eur.venta - eur.compra).toFixed(4) : null,
-        fechaActualizacion: eur.fechaActualizacion,
-        fuente: 'DolarApi.com',
-      },
+      eur: buildEurVenta(usd, forexGlobal),
       mep: mep ? {
         nombre: 'MEP (Bolsa)',
         compra: mep.compra,

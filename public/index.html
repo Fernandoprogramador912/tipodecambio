@@ -119,7 +119,7 @@
     /* ── Fila 1: USD + EUR + Spread MEP ── */
     .fx-top-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr 1.6fr;
+      grid-template-columns: 2fr minmax(7.5rem, 0.75fr) 1.6fr;
       gap: .75rem;
       align-items: start;
     }
@@ -218,22 +218,19 @@
       flex-wrap: wrap; gap: .2rem;
     }
     .usd-stale-hint { color: var(--amber, #d4a017); font-size: .62rem; }
-    /* ── Card EUR (pequeño) ── */
+    /* ── Card EUR (compacta) ── */
     .eur-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: .85rem 1rem;
+      padding: .55rem .65rem;
+      align-self: start;
     }
-    .eur-card .card-label { font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .2rem; }
-    .eur-card .fx-pair-label { font-size: .62rem; margin-bottom: .2rem; }
-    .eur-card .fx-flag-img { width: 1.15rem; height: .78rem; }
-    .eur-card .card-name  { font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: .6rem; }
-    .eur-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-    .eur-col { display: flex; flex-direction: column; gap: .15rem; }
-    .eur-col .lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .eur-col .val { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .eur-footer { font-size: .6rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: .4rem; margin-top: .5rem; }
+    .eur-card .fx-pair-label { font-size: .58rem; margin-bottom: .35rem; }
+    .eur-card .fx-flag-img { width: 1rem; height: .68rem; }
+    .eur-values { display: flex; flex-direction: column; align-items: center; gap: .1rem; }
+    .eur-values .lbl { font-size: .55rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .eur-values .eur-venta-val { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.1; }
 
     /* ── Gráfico intradiario ── */
     .chart-card {
@@ -243,8 +240,8 @@
       padding: .85rem 1rem;
     }
     .chart-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: .6rem; flex-wrap: wrap; gap: .4rem;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: .6rem; flex-wrap: wrap; gap: .75rem;
     }
     .chart-title { font-size: .82rem; font-weight: 600; color: var(--text); }
     .chart-subtitle { font-size: .67rem; color: var(--muted); }
@@ -267,38 +264,55 @@
     .previous-chart-subtitle { font-size: .62rem; color: var(--muted); }
     .previous-chart-wrapper { position: relative; height: 92px; }
     .tc-history-panel {
+      display: none;
       margin-top: .85rem;
       padding-top: .75rem;
       border-top: 1px solid var(--border);
     }
-    .tc-history-header {
-      display: flex; align-items: baseline; justify-content: space-between;
-      gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem;
+    .tc-history-filters {
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem;
+      margin-bottom: .75rem;
     }
-    .tc-history-title { font-size: .75rem; font-weight: 700; color: var(--text); }
-    .tc-history-hint { font-size: .62rem; color: var(--muted); }
-    .tc-history-dates {
-      display: flex; flex-wrap: wrap; gap: .4rem;
+    .tc-history-filters label {
+      display: flex; flex-direction: column; gap: .2rem;
+      font-size: .62rem; color: var(--muted); font-weight: 600;
     }
-    .tc-history-chip {
+    .tc-history-filters input[type="date"] {
+      background: var(--bg);
       border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--muted);
-      font-size: .68rem;
-      font-weight: 600;
-      padding: .28rem .55rem;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: border-color .15s, color .15s, background .15s;
+      color: var(--text);
+      border-radius: 6px;
+      padding: .35rem .5rem;
+      font-size: .75rem;
     }
-    .tc-history-chip:hover { border-color: var(--blue); color: var(--blue); }
-    .tc-history-chip.active {
-      border-color: var(--blue);
-      color: var(--blue);
+    .tc-history-apply-btn {
+      border: 1px solid var(--blue);
       background: rgba(88,166,255,.12);
+      color: var(--blue);
+      font-size: .72rem;
+      font-weight: 700;
+      padding: .4rem .75rem;
+      border-radius: 6px;
+      cursor: pointer;
     }
-    .tc-history-chip .pts { opacity: .75; font-weight: 500; margin-left: .2rem; }
-    .tc-history-empty { font-size: .7rem; color: var(--muted); }
+    .tc-history-apply-btn:hover { filter: brightness(1.1); }
+    .tc-history-hint { font-size: .62rem; color: var(--muted); margin-bottom: .5rem; }
+    .tc-history-list { display: flex; flex-direction: column; gap: .85rem; }
+    .tc-history-day-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .6rem .65rem;
+      background: var(--bg);
+    }
+    .tc-history-day-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: .4rem; font-size: .72rem;
+    }
+    .tc-history-day-head strong { color: var(--text); }
+    .tc-history-day-head span { color: var(--muted); }
+    .tc-history-day-chart-wrap { position: relative; height: 110px; }
+    .tc-history-day-meta { font-size: .62rem; color: var(--muted); margin-top: .35rem; }
+    .tc-history-empty { font-size: .75rem; color: var(--muted); padding: .5rem 0; }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -618,14 +632,11 @@
       </div>
 
       <div class="eur-card skeleton" id="eurCard">
-        <div class="card-label fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/eu.svg" width="22" height="15" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="22" height="15" alt=""></span><span>EUR / ARS</span></div>
-        <div class="card-name">Cargando...</div>
+        <div class="fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/eu.svg" width="18" height="12" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="18" height="12" alt=""></span><span>EUR / ARS</span></div>
         <div class="eur-values">
-          <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">—</span></div>
-          <div class="eur-col"><span class="lbl">Venta</span><span class="val sell">—</span></div>
-          <div class="eur-col"><span class="lbl">Spread</span><span class="val spread">—</span></div>
+          <span class="lbl">Venta</span>
+          <span class="eur-venta-val">—</span>
         </div>
-        <div class="eur-footer">—</div>
       </div>
 
       <div class="spread-card skeleton" id="spreadCard">
@@ -655,6 +666,7 @@
             <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
             <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
           </div>
+          <button type="button" class="history-toggle-btn" id="toggleTcHistoryBtn">Ver historial ▾</button>
         </div>
         <div id="chartContainer">
           <div class="chart-no-data" id="chartNoData">
@@ -668,12 +680,18 @@
           </div>
         </div>
         <div class="tc-history-panel" id="tcHistoryPanel">
-          <div class="tc-history-header">
-            <div class="tc-history-title">Historial de rueda · comparar días</div>
-            <div class="tc-history-hint" id="tcHistoryHint">Desde hoy hacia adelante · tocá para elegir (máx. 4)</div>
+          <div class="tc-history-hint" id="tcHistoryHint">Ruedas guardadas desde el deploy · elegí un intervalo de fechas</div>
+          <div class="tc-history-filters">
+            <label>Desde
+              <input type="date" id="tcHistFrom" />
+            </label>
+            <label>Hasta
+              <input type="date" id="tcHistTo" />
+            </label>
+            <button type="button" class="tc-history-apply-btn" id="tcHistApply">Mostrar gráficos</button>
           </div>
-          <div class="tc-history-dates" id="tcHistoryDates">
-            <span class="tc-history-empty">Cargando días guardados...</span>
+          <div class="tc-history-list" id="tcHistoryList">
+            <p class="tc-history-empty">Abrí el historial y elegí fechas para ver cada rueda.</p>
           </div>
         </div>
       </div>
@@ -783,7 +801,7 @@
 
   let fxChart = null;
   let tcHistoryIndex = { startDate: null, days: [] };
-  const tcHistorySelected = new Set();
+  const tcHistoryCharts = new Map();
   const TC_CHART_COLORS = ['#58a6ff', '#f0883e', '#3fb950', '#d2a8ff', '#f85149'];
   let fxErrorCount = 0;
   let usdStaleStreak = 0;
@@ -975,19 +993,19 @@
     const card = document.getElementById('eurCard');
     card.classList.remove('skeleton');
     card.innerHTML = `
-      <div class="card-label fx-pair-label">${FX_LABEL_EUR}</div>
-      <div class="card-name">${r.nombre}</div>
+      <div class="fx-pair-label">${FX_LABEL_EUR}</div>
       <div class="eur-values">
-        <div class="eur-col"><span class="lbl">Compra</span><span class="val buy">$${fmt(r.compra)}</span></div>
-        <div class="eur-col"><span class="lbl">Venta</span><span class="val sell">$${fmt(r.venta)}</span></div>
-        <div class="eur-col"><span class="lbl">Spread</span><span class="val spread">$${fmt(r.spread)}</span></div>
-      </div>
-      <div class="eur-footer">Act: ${fmtDate(r.fechaActualizacion)} · ${r.fuente}</div>`;
+        <span class="lbl">Venta</span>
+        <span class="eur-venta-val">${r?.venta != null ? '$' + fmt(r.venta) : '—'}</span>
+      </div>`;
   }
 
   let projectionLocked = false;
 
-  function renderProjectionPending(message) {
+  function renderProjectionPending(payload) {
+    const message = typeof payload === 'string' ? payload : payload?.message;
+    const hint = typeof payload === 'object' ? payload?.hint : '';
+    const lastSaved = typeof payload === 'object' ? payload?.lastSavedDate : null;
     const card = document.getElementById('projCard');
     card.className = 'proj-card neutro';
     card.classList.remove('skeleton');
@@ -997,11 +1015,13 @@
           <div class="proj-arrow neutro">⏳</div>
           <div>
             <div class="proj-label">Proyección del día pendiente</div>
-            <div class="proj-score">Se fija a las 9:00 ART · no se actualiza con el TC en vivo</div>
+            <div class="proj-score">Se fija a las 9:00 ART (Lun–Vie) · no cambia con el TC en vivo</div>
           </div>
         </div>
       </div>
-      <div class="proj-recommendation">${escHtml(message || 'Aún no hay proyección registrada para hoy.')}</div>`;
+      <div class="proj-recommendation">${escHtml(message || 'Aún no hay proyección registrada para hoy.')}</div>
+      ${lastSaved ? `<div class="proj-recommendation" style="margin-top:.5rem;font-size:.78rem;">Última guardada: <strong>${escHtml(formatStoredDay(lastSaved))}</strong></div>` : ''}
+      ${hint ? `<div class="proj-disclaimer" style="margin-top:.6rem;">${escHtml(hint)}</div>` : ''}`;
   }
 
   // ── Render Proyección ──
@@ -1401,33 +1421,122 @@
     } catch {}
   }
 
-  function renderTcHistoryPicker() {
-    const wrap = document.getElementById('tcHistoryDates');
-    const days = tcHistoryIndex.days || [];
-    if (!days.length) {
-      wrap.innerHTML = '<span class="tc-history-empty">Sin días guardados aún. Se acumulan desde hoy en cada rueda.</span>';
-      return;
-    }
-    wrap.innerHTML = days.map(d => {
-      const active = tcHistorySelected.has(d.date) ? ' active' : '';
-      const pts = d.pointCount != null ? `<span class="pts">${d.pointCount} pts</span>` : '';
-      return `<button type="button" class="tc-history-chip${active}" data-date="${d.date}">${formatStoredDay(d.date)}${pts}</button>`;
-    }).join('');
-    wrap.querySelectorAll('.tc-history-chip').forEach(btn => {
-      btn.addEventListener('click', () => toggleTcHistoryDate(btn.dataset.date));
-    });
+  function destroyTcHistoryCharts() {
+    tcHistoryCharts.forEach(chart => chart.destroy());
+    tcHistoryCharts.clear();
   }
 
-  function toggleTcHistoryDate(date) {
-    if (!date) return;
-    if (tcHistorySelected.has(date)) {
-      if (tcHistorySelected.size > 1) tcHistorySelected.delete(date);
+  function canvasIdForDate(date) {
+    return `tcHistChart_${date.replace(/-/g, '')}`;
+  }
+
+  function initTcHistoryDateInputs() {
+    const fromEl = document.getElementById('tcHistFrom');
+    const toEl = document.getElementById('tcHistTo');
+    const days = tcHistoryIndex.days || [];
+    const start = tcHistoryIndex.startDate || todayARTString();
+    const today = todayARTString();
+    const minDate = days.length ? days[days.length - 1].date : start;
+    const maxDate = days.length ? days[0].date : today;
+
+    fromEl.min = start;
+    fromEl.max = maxDate;
+    toEl.min = start;
+    toEl.max = maxDate;
+
+    const defaultFrom = days.length > 6 ? days[6].date : minDate;
+    fromEl.value = defaultFrom;
+    toEl.value = maxDate;
+  }
+
+  function toggleTcHistoryPanel() {
+    const panel = document.getElementById('tcHistoryPanel');
+    const btn = document.getElementById('toggleTcHistoryBtn');
+    const open = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = open ? 'block' : 'none';
+    btn.textContent = open ? 'Ocultar historial ▴' : 'Ver historial ▾';
+    if (open) {
+      applyTcHistoryRange();
     } else {
-      if (tcHistorySelected.size >= 4) return;
-      tcHistorySelected.add(date);
+      destroyTcHistoryCharts();
     }
-    renderTcHistoryPicker();
-    refreshChartView();
+  }
+
+  function buildHistoryDayChart(date, points, canvas) {
+    const { slots, values, realValues, realCount } = normalizeChartPoints(points);
+    if (realCount === 0 || !canvas) return null;
+
+    const th = getChartTheme();
+    const color = TC_CHART_COLORS[0];
+    const chartData = {
+      labels: slots,
+      datasets: [{
+        label: formatStoredDay(date),
+        data: values,
+        borderColor: color,
+        backgroundColor: color + '33',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        spanGaps: true,
+        fill: true,
+      }],
+    };
+    const options = makeIntradayChartOptions(slots, realValues, th, true);
+    return new Chart(canvas.getContext('2d'), { type: 'line', data: chartData, options });
+  }
+
+  async function applyTcHistoryRange() {
+    const list = document.getElementById('tcHistoryList');
+    const from = document.getElementById('tcHistFrom').value;
+    const to = document.getElementById('tcHistTo').value;
+    const days = (tcHistoryIndex.days || [])
+      .filter(d => (!from || d.date >= from) && (!to || d.date <= to))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    destroyTcHistoryCharts();
+
+    if (!days.length) {
+      list.innerHTML = '<p class="tc-history-empty">No hay días con datos en ese intervalo. Probá ampliar el rango.</p>';
+      return;
+    }
+
+    list.innerHTML = days.map(d => `
+      <article class="tc-history-day-card">
+        <div class="tc-history-day-head">
+          <strong>${formatStoredDay(d.date)}</strong>
+          <span>${d.pointCount ?? '—'} puntos</span>
+        </div>
+        <div class="tc-history-day-chart-wrap">
+          <canvas id="${canvasIdForDate(d.date)}"></canvas>
+        </div>
+        <div class="tc-history-day-meta" id="meta_${canvasIdForDate(d.date)}">Cargando…</div>
+      </article>
+    `).join('');
+
+    for (const d of days) {
+      const points = await fetchDayPoints(d.date);
+      const canvas = document.getElementById(canvasIdForDate(d.date));
+      const meta = document.getElementById(`meta_${canvasIdForDate(d.date)}`);
+      const { realValues, realCount } = normalizeChartPoints(points);
+
+      if (realCount === 0) {
+        if (meta) meta.textContent = 'Sin puntos dentro de la rueda (10:00–15:00)';
+        continue;
+      }
+
+      const chart = buildHistoryDayChart(d.date, points, canvas);
+      if (chart) tcHistoryCharts.set(d.date, chart);
+
+      const first = realValues[0];
+      const last = realValues[realValues.length - 1];
+      const delta = last - first;
+      const pct = first ? (delta / first) * 100 : 0;
+      const sign = delta > 0 ? '+' : '';
+      if (meta) {
+        meta.textContent = `${realCount} puntos en rueda · ${sign}$${fmt(delta)} (${sign}${pct.toFixed(2)}%) · cierre $${fmt(last)}`;
+      }
+    }
   }
 
   async function fetchDayPoints(date) {
@@ -1439,16 +1548,12 @@
     return lsLoad(date);
   }
 
-  async function refreshChartView() {
-    const dates = [...tcHistorySelected].sort();
-    if (!dates.length) {
-      buildChart([]);
-      return;
-    }
-    const series = await Promise.all(
-      dates.map(async date => ({ date, points: await fetchDayPoints(date) }))
-    );
-    buildChartCompare(series);
+  async function buildTodayChart() {
+    const today = todayARTString();
+    const points = await fetchDayPoints(today);
+    document.getElementById('chartTitle').textContent =
+      `USD/ARS Mayorista — hoy (${formatStoredDay(today)})`;
+    buildChartCompare([{ date: today, points }]);
   }
 
   async function loadTcHistoryIndex() {
@@ -1457,26 +1562,20 @@
       const json = await res.json();
       if (!json.ok) return;
       tcHistoryIndex = { startDate: json.startDate, days: json.days || [] };
-      tcHistorySelected.clear();
-      const today = todayARTString();
-      if (tcHistoryIndex.days.some(d => d.date === today)) {
-        tcHistorySelected.add(today);
-      } else if (tcHistoryIndex.days[0]) {
-        tcHistorySelected.add(tcHistoryIndex.days[0].date);
-      }
-      document.getElementById('tcHistoryHint').textContent =
-        `Desde ${formatStoredDay(json.startDate)} · ${json.days.length} día(s) en servidor`;
-      renderTcHistoryPicker();
-      await refreshChartView();
+      const n = json.days.length;
+      document.getElementById('tcHistoryHint').textContent = n
+        ? `${n} día(s) guardado(s) desde ${formatStoredDay(json.startDate)} · ${json.storage || 'servidor'}`
+        : `Sin días guardados aún (desde ${formatStoredDay(json.startDate)}). Se llenan en cada rueda.`;
+      initTcHistoryDateInputs();
+      await buildTodayChart();
     } catch {
-      document.getElementById('tcHistoryDates').innerHTML =
-        '<span class="tc-history-empty">No se pudo cargar el historial.</span>';
+      document.getElementById('tcHistoryHint').textContent = 'No se pudo cargar el índice de historial.';
+      await buildTodayChart();
     }
   }
 
   async function fetchHistory() {
-    await refreshChartView();
-    renderTcHistoryPicker();
+    await buildTodayChart();
   }
 
   // ── Fetch Noticias ──
@@ -1534,14 +1633,14 @@
     } else {
       signalClass = 'cold';
       signalIcon  = '🔴';
-      signalText  = 'MEP por debajo del mayorista';
+      signalText  = 'MEP compra por debajo del mayorista';
     }
 
     const fmt = v => v != null ? '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
     card.innerHTML = `
       <div>
-        <div class="spread-title">Spread MEP — Mayorista (venta)</div>
+        <div class="spread-title">Spread MEP compra — Mayorista venta</div>
         <div class="spread-main">
           <div class="spread-val-block">
             <div class="label">Monto</div>
@@ -1560,8 +1659,8 @@
 
       <div class="spread-prices">
         <div class="spread-price-item">
-          <div class="sp-lbl">MEP venta</div>
-          <div class="sp-val">${fmt(mep.venta)}</div>
+          <div class="sp-lbl">MEP compra</div>
+          <div class="sp-val">${fmt(mep.compra)}</div>
         </div>
         <div class="spread-price-item">
           <div class="sp-lbl">Mayorista venta</div>
@@ -1572,7 +1671,7 @@
       <div>
         <div class="spread-signal ${signalClass}">${signalIcon} ${signalText}</div>
         <div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;">
-          Operación: vendés USD a precio MEP → obtenés ARS → comprás USD al tipo mayorista
+          Comparación: comprás USD vía MEP (compra) vs cotización mayorista (venta)
         </div>
       </div>
     `;
@@ -1691,7 +1790,7 @@
       const json = await res.json();
       if (!json.ok) return;
       if (json.pending) {
-        renderProjectionPending(json.message);
+        renderProjectionPending(json);
         return;
       }
       if (json.data) {
@@ -1729,6 +1828,9 @@
 
     // Proyección: una sola carga (fija a las 9:00 ART; no sigue al TC en vivo).
   }
+
+  document.getElementById('toggleTcHistoryBtn').addEventListener('click', toggleTcHistoryPanel);
+  document.getElementById('tcHistApply').addEventListener('click', applyTcHistoryRange);
 
   init().then(() => {
     startFXLoop();

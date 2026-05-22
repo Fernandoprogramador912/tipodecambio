@@ -129,13 +129,19 @@ app.get('/api/projection', async (req, res) => {
     }
 
     // Después de las 9:00: no recalcular con TC en vivo; esperar el job diario.
+    const history = await getHistory().catch(() => ({ records: [] }));
+    const lastRecord = history.records?.[0] || null;
     return res.json({
       ok: true,
       stored: false,
       locked: false,
       pending: true,
       data: null,
-      message: 'La proyección oficial del día se registra a las 9:00 (ART). Todavía no está disponible.',
+      message: 'La proyección oficial del día se registra a las 9:00 (ART). Todavía no está disponible para hoy.',
+      lastSavedDate: lastRecord?.date || null,
+      hint: lastRecord
+        ? `Última proyección guardada: ${lastRecord.date}. Si ya pasaron las 9:00, ejecutá el workflow "Daily projection" en GitHub Actions.`
+        : 'Aún no hay proyecciones guardadas. Configurá los secrets APP_URL y PROJECTION_JOB_SECRET y ejecutá "Daily projection" en GitHub Actions.',
     });
   } catch (err) {
     res.status(err.statusCode || 500).json({ ok: false, error: err.message });
