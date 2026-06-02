@@ -51,12 +51,18 @@
       --chart-grid: rgba(208, 215, 222, .8);
     }
 
-    html { font-size: 16px; }
+    html {
+      font-size: 16px;
+      overflow-x: clip;
+      max-width: 100%;
+    }
     body {
       font-family: var(--font);
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      max-width: 100%;
+      overflow-x: clip;
       transition: background .2s, color .2s;
     }
 
@@ -107,7 +113,16 @@
     .refresh-progress { height: 100%; background: var(--accent); width: 0%; transition: width .1s linear; }
 
     /* ── Layout ── */
-    main { max-width: 1400px; margin: 0 auto; padding: 1rem 1.25rem 2rem; display: grid; gap: .75rem; }
+    main {
+      max-width: 1400px;
+      width: 100%;
+      min-width: 0;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 2rem;
+      display: grid;
+      gap: .75rem;
+    }
+    main > section { min-width: 0; max-width: 100%; }
 
     .section-title {
       font-size: .68rem; font-weight: 600; text-transform: uppercase;
@@ -119,9 +134,11 @@
     /* ── Hero: USD mayorista + gráfico intradiario ── */
     .usd-chart-hero {
       display: grid;
-      grid-template-columns: minmax(240px, 0.9fr) minmax(300px, 1.4fr);
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
       gap: .75rem;
       align-items: stretch;
+      min-width: 0;
+      width: 100%;
     }
     .usd-chart-hero .usd-card { height: 100%; }
     .usd-chart-hero .chart-card {
@@ -137,9 +154,10 @@
     /* ── Fila secundaria: EUR + Spread MEP ── */
     .fx-secondary-grid {
       display: grid;
-      grid-template-columns: minmax(7.5rem, 0.35fr) 1fr;
+      grid-template-columns: minmax(0, auto) minmax(0, 1fr);
       gap: .75rem;
       align-items: start;
+      min-width: 0;
     }
     /* ── Cruces internacionales vs USD (una fila, ancho completo) ── */
     .fx-global-card {
@@ -165,14 +183,13 @@
       min-width: 0; text-align: right;
     }
     .fx-global-grid {
-      display: flex;
-      flex-wrap: nowrap;
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: .35rem;
       width: 100%;
       min-width: 0;
     }
     .fx-global-item {
-      flex: 1 1 0;
       min-width: 0;
       background: var(--bg);
       border: 1px solid var(--border);
@@ -379,7 +396,12 @@
     }
 
     /* ── Noticias (estilo diario) ── */
-    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+      gap: 1rem;
+      min-width: 0;
+    }
     .news-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: .85rem 1rem 1rem;
@@ -477,11 +499,19 @@
     }
     .history-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
 
-    /* ── Responsive (tablet y móvil) ── */
-    @media (max-width: 900px) {
+    /* ── Responsive (notebook, tablet y móvil) ── */
+    @media (max-width: 1280px) {
+      .fx-global-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 1100px) {
       .usd-chart-hero { grid-template-columns: 1fr; }
       .usd-chart-hero .usd-card { height: auto; }
-      .news-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+      .fx-secondary-grid { grid-template-columns: 1fr; }
+      .news-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
     }
 
     @media (max-width: 640px) {
@@ -558,16 +588,10 @@
         line-height: 1.35;
       }
       .fx-global-grid {
-        display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: .4rem;
-        overflow: visible;
       }
-      .fx-global-item {
-        flex: none;
-        min-width: 0;
-        padding: .5rem .55rem;
-      }
+      .fx-global-item { padding: .5rem .55rem; }
       .fx-global-rate { font-size: .92rem; }
       .fx-global-sub { font-size: .52rem; white-space: normal; }
       .fx-global-chg { font-size: .58rem; white-space: normal; }
