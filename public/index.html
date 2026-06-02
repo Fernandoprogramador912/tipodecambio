@@ -133,6 +133,8 @@
     .usd-chart-hero .chart-wrapper { flex: 1; min-height: 185px; height: auto; }
     @media (max-width: 900px) { .usd-chart-hero { grid-template-columns: 1fr; } }
 
+    .fx-global-strip { margin-top: .75rem; min-width: 0; }
+
     /* ── Fila secundaria: EUR + Spread MEP ── */
     .fx-secondary-grid {
       display: grid;
@@ -142,44 +144,73 @@
     }
     @media (max-width: 700px) { .fx-secondary-grid { grid-template-columns: 1fr; } }
 
-    /* ── Cruces internacionales vs USD ── */
+    /* ── Cruces internacionales vs USD (una fila, ancho completo) ── */
     .fx-global-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1rem 1.1rem;
+      padding: .6rem .7rem;
+      min-width: 0;
     }
     .fx-global-header {
       display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: .35rem; margin-bottom: .75rem;
+      flex-wrap: nowrap; gap: .5rem; margin-bottom: .45rem;
+      min-width: 0;
     }
     .fx-global-header .title {
-      font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      font-size: .65rem; font-weight: 600; text-transform: uppercase;
       letter-spacing: .06em; color: var(--muted);
+      white-space: nowrap; flex-shrink: 0;
     }
-    .fx-global-meta { font-size: .62rem; color: var(--muted); }
+    .fx-global-meta {
+      font-size: .58rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0; text-align: right;
+    }
     .fx-global-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-      gap: .55rem;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: .35rem;
+      width: 100%;
+      min-width: 0;
     }
     .fx-global-item {
+      flex: 1 1 0;
+      min-width: 0;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: .55rem .65rem;
-      display: flex; flex-direction: column; gap: .2rem;
+      padding: .4rem .45rem;
+      display: flex;
+      flex-direction: column;
+      gap: .12rem;
     }
-    .fx-global-pair { font-size: .62rem; margin-bottom: .1rem; }
-    .fx-global-pair .fx-flag-img { width: 1.1rem; height: .74rem; }
+    .fx-global-pair { font-size: .55rem; margin-bottom: 0; }
+    .fx-global-pair .fx-flag-img { width: .95rem; height: .64rem; }
+    .fx-global-pair span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .fx-global-rate {
-      font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums;
+      font-size: clamp(.78rem, 0.95vw, 1rem);
+      font-weight: 800; font-variant-numeric: tabular-nums;
       color: var(--text); line-height: 1.1;
+      white-space: nowrap;
     }
-    .fx-global-sub { font-size: .58rem; color: var(--muted); line-height: 1.35; }
+    .fx-global-sub {
+      font-size: .5rem; color: var(--muted); line-height: 1.2;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .fx-global-chg {
-      display: inline-flex; align-items: center; gap: .25rem;
-      font-size: .68rem; font-weight: 700; margin-top: .1rem;
+      display: inline-flex; align-items: center; gap: .2rem;
+      font-size: clamp(.52rem, 0.72vw, .62rem); font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    @media (max-width: 720px) {
+      .fx-global-grid {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }
+      .fx-global-item { flex: 0 0 auto; min-width: 5.5rem; }
     }
     .fx-global-chg.aprecia { color: var(--green); }
     .fx-global-chg.deprecia { color: var(--red); }
@@ -388,71 +419,6 @@
     .skeleton { animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:.8} }
 
-    /* ── Proyección ── */
-    .proj-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: .85rem 1rem;
-    }
-    .proj-card.alcista  { border-color: rgba(248,81,73,.4); }
-    .proj-card.bajista  { border-color: rgba(63,185,80,.4); }
-    .proj-card.neutro   { border-color: rgba(88,166,255,.3); }
-
-    .proj-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-    .proj-direction { display: flex; align-items: center; gap: .6rem; }
-    .proj-arrow {
-      font-size: 1.6rem; font-weight: 800; line-height: 1;
-    }
-    .proj-arrow.alcista { color: var(--red); }
-    .proj-arrow.bajista { color: var(--green); }
-    .proj-arrow.neutro  { color: var(--blue); }
-
-    .proj-label { font-size: 1.1rem; font-weight: 700; }
-    .proj-score { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
-    .proj-lock-badge {
-      display: inline-block; margin-left: .35rem; padding: .1rem .4rem;
-      border-radius: 4px; font-size: .62rem; font-weight: 600;
-      background: rgba(88,166,255,.15); color: var(--blue);
-    }
-    .proj-lock-badge.preview { background: rgba(210,153,34,.12); color: #d29922; }
-
-    .proj-range {
-      text-align: right;
-      font-size: .78rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-    .proj-range strong { color: var(--text); font-size: .9rem; }
-
-    .proj-signals { display: flex; flex-direction: column; gap: .45rem; margin-bottom: 1rem; }
-    .proj-signal {
-      display: flex; align-items: flex-start; gap: .6rem;
-      font-size: .78rem; color: var(--muted); line-height: 1.4;
-    }
-    .proj-signal .sig-icon { font-size: .85rem; min-width: 1.2rem; text-align: center; }
-    .proj-signal.alcista .sig-icon { color: var(--red); }
-    .proj-signal.bajista .sig-icon { color: var(--green); }
-    .proj-signal.neutro  .sig-icon { color: var(--blue); }
-
-    .proj-recommendation {
-      background: var(--surface2);
-      border-radius: 8px;
-      padding: .8rem 1rem;
-      font-size: .82rem;
-      color: var(--text);
-      line-height: 1.5;
-      margin-bottom: .75rem;
-    }
-    .proj-recommendation::before { content: '💡 '; }
-
-    .proj-disclaimer {
-      font-size: .65rem;
-      color: var(--muted);
-      opacity: .7;
-    }
-
     /* ── Card Spread MEP/Mayorista ── */
     .spread-card {
       background: var(--surface);
@@ -521,73 +487,6 @@
       transition: border-color .15s, color .15s;
     }
     .history-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
-
-    /* ── Historial proyecciones ── */
-    .history-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: .75rem;
-      margin-bottom: 1.25rem;
-    }
-    .stat-box {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .75rem 1rem;
-      text-align: center;
-    }
-    .stat-box .stat-val {
-      font-size: 1.6rem;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-      margin-bottom: .2rem;
-    }
-    .stat-box .stat-lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-    .stat-box.accuracy-high .stat-val { color: var(--text); }
-    .stat-box.accuracy-mid  .stat-val { color: var(--text); }
-    .stat-box.accuracy-low  .stat-val { color: var(--text); }
-    .stat-box.neutral       .stat-val { color: var(--text); }
-
-    .history-table-wrap { overflow-x: auto; }
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .78rem;
-    }
-    .history-table th {
-      text-align: left;
-      font-size: .65rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--muted);
-      padding: .5rem .75rem;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    .history-table td {
-      padding: .6rem .75rem;
-      border-bottom: 1px solid rgba(48,54,61,.5);
-      vertical-align: middle;
-    }
-    .history-table tr:last-child td { border-bottom: none; }
-    .history-table tr:hover td { background: var(--row-hover); }
-
-    .result-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: .3rem;
-      font-size: .7rem;
-      font-weight: 700;
-      padding: .15rem .5rem;
-      border-radius: 4px;
-    }
-    .result-correct   { background: rgba(63,185,80,.15);  color: var(--green);  }
-    .result-incorrect { background: rgba(248,81,73,.15);  color: var(--red);    }
-    .result-pending   { background: rgba(139,148,158,.1); color: var(--muted);  }
-
-    .direction-cell { font-weight: 600; white-space: nowrap; }
 
     @media (max-width: 480px) {
       .news-grid { grid-template-columns: 1fr; }
@@ -674,6 +573,12 @@
       </div>
 
     </div>
+
+    <div class="fx-global-strip">
+      <div class="fx-global-card skeleton" id="fxGlobalCard">
+        <div class="fx-global-empty">Cargando cruces internacionales...</div>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -692,50 +597,6 @@
         <div style="color:var(--muted);font-size:.82rem;">Cargando MEP...</div>
       </div>
 
-    </div>
-  </section>
-
-  <section>
-    <div class="section-title">Mercado internacional · Cruces vs USD</div>
-    <div class="fx-global-card skeleton" id="fxGlobalCard">
-      <div class="fx-global-empty">Cargando cruces internacionales...</div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-title">Proyección intradiaria</div>
-    <div class="proj-card skeleton" id="projCard">
-      <div style="color:var(--muted);font-size:.82rem;">Calculando proyección...</div>
-    </div>
-  </section>
-
-  <!-- FILA 3: Historial compacto (tabla colapsable) -->
-  <section>
-    <div class="section-title">
-      Historial de proyecciones — registro de aciertos
-      <button class="history-toggle-btn" id="toggleHistoryBtn" onclick="toggleHistoryTable()">Ver tabla ▾</button>
-    </div>
-    <div id="historySection">
-      <div class="history-stats" id="historyStats"></div>
-      <div class="history-table-wrap" id="historyTableWrap" style="display:none; margin-top:.5rem;">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Día</th>
-              <th>Dirección proyectada</th>
-              <th>Rango estimado</th>
-              <th>Spot</th>
-              <th>Cierre real</th>
-              <th>Dirección</th>
-              <th>En rango</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody">
-            <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.5rem;">Cargando historial...</td></tr>
-          </tbody>
-        </table>
-      </div>
     </div>
   </section>
 
@@ -1009,78 +870,6 @@
         <span class="lbl">Venta</span>
         <span class="eur-venta-val">${r?.venta != null ? '$' + fmt(r.venta) : '—'}</span>
       </div>`;
-  }
-
-  let projectionLocked = false;
-
-  function renderProjectionPending(payload) {
-    const message = typeof payload === 'string' ? payload : payload?.message;
-    const hint = typeof payload === 'object' ? payload?.hint : '';
-    const lastSaved = typeof payload === 'object' ? payload?.lastSavedDate : null;
-    const card = document.getElementById('projCard');
-    card.className = 'proj-card neutro';
-    card.classList.remove('skeleton');
-    card.innerHTML = `
-      <div class="proj-header">
-        <div class="proj-direction">
-          <div class="proj-arrow neutro">⏳</div>
-          <div>
-            <div class="proj-label">Proyección del día pendiente</div>
-            <div class="proj-score">Se fija a las 9:00 ART (Lun–Vie) · no cambia con el TC en vivo</div>
-          </div>
-        </div>
-      </div>
-      <div class="proj-recommendation">${escHtml(message || 'Aún no hay proyección registrada para hoy.')}</div>
-      ${lastSaved ? `<div class="proj-recommendation" style="margin-top:.5rem;font-size:.78rem;">Última guardada: <strong>${escHtml(formatStoredDay(lastSaved))}</strong></div>` : ''}
-      ${hint ? `<div class="proj-disclaimer" style="margin-top:.6rem;">${escHtml(hint)}</div>` : ''}`;
-  }
-
-  // ── Render Proyección ──
-  function renderProjection(p, meta = {}) {
-    const card = document.getElementById('projCard');
-    card.classList.remove('skeleton');
-
-    const dir = p.direction;
-    const isAlcista = dir.arrow.includes('▲') || dir.arrow.includes('↗');
-    const isBajista = dir.arrow.includes('▼') || dir.arrow.includes('↘');
-    const colorClass = isAlcista ? 'alcista' : isBajista ? 'bajista' : 'neutro';
-    const estimatedMoveARS = p.estimatedMoveARS ?? (
-      p.estimated != null && p.spot != null ? p.estimated - p.spot : null
-    );
-    const spotLabel = meta.stored
-      ? 'Spot al registro (9:00)'
-      : (meta.preview ? 'Spot de referencia (previa)' : 'Spot de referencia');
-    const lockBadge = meta.stored
-      ? '<span class="proj-lock-badge">Fija del día · 9:00 ART</span>'
-      : (meta.preview ? '<span class="proj-lock-badge preview">Vista previa · no oficial</span>' : '');
-
-    card.className = `proj-card ${colorClass}`;
-
-    const signalsHtml = p.signals.map(s => `
-      <div class="proj-signal ${s.impacto}">
-        <span class="sig-icon">${s.icono}</span>
-        <span>${s.descripcion}</span>
-      </div>`).join('');
-
-    card.innerHTML = `
-      <div class="proj-header">
-        <div class="proj-direction">
-          <div class="proj-arrow ${colorClass}">${dir.arrow}</div>
-          <div>
-            <div class="proj-label">${dir.label}</div>
-            <div class="proj-score">${p.dayName} · ${p.session.label} ${lockBadge}</div>
-          </div>
-        </div>
-        <div class="proj-range">
-          <div>Variación estimada: <strong>${p.variacionEstimada}</strong></div>
-          <div>Movimiento estimado: <strong>${estimatedMoveARS >= 0 ? '+' : ''}$${fmt(estimatedMoveARS)}</strong></div>
-          <div>Rango de cierre: <strong>$${p.rangeMin.toLocaleString('es-AR')} – $${p.rangeMax.toLocaleString('es-AR')}</strong></div>
-          <div>${spotLabel}: $${fmt(p.spot)}</div>
-        </div>
-      </div>
-      <div class="proj-signals">${signalsHtml}</div>
-      <div class="proj-recommendation">${p.recommendation}</div>
-      <div class="proj-disclaimer">⚠️ ${p.disclaimer}</div>`;
   }
 
   function escHtml(s) {
@@ -1381,10 +1170,6 @@
         lsAddPoint(usd.venta);
         fetchHistory();
       }
-      // Registrar precio de cierre si estamos en ventana 15:00–15:30
-      if (usd?.venta && isCloseWindow()) {
-        sendClosePrice(usd.venta);
-      }
       fxErrorCount = 0;
       document.getElementById('lastUpdate').textContent =
         'Última actualización: ' + new Date().toLocaleTimeString('es-AR');
@@ -1642,15 +1427,6 @@
     }
   }
 
-  // ── Toggle tabla historial ──
-  function toggleHistoryTable() {
-    const wrap = document.getElementById('historyTableWrap');
-    const btn  = document.getElementById('toggleHistoryBtn');
-    const open = wrap.style.display === 'none';
-    wrap.style.display = open ? 'block' : 'none';
-    btn.textContent    = open ? 'Ocultar tabla ▴' : 'Ver tabla ▾';
-  }
-
   // ── Spread MEP vs Mayorista ──
   function renderSpread(mep, usd, spreadData) {
     const card = document.getElementById('spreadCard');
@@ -1725,138 +1501,11 @@
     `;
   }
 
-  // ── Historial de proyecciones ──
-  let closeSentToday = false;
-
-  function isCloseWindow() {
-    // 15:00–15:30 ART = registro del precio de cierre
-    const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    const min = art.getUTCHours() * 60 + art.getUTCMinutes();
-    return min >= 15 * 60 && min <= 15 * 60 + 30;
-  }
-
-  function accuracyClass(pct) {
-    if (pct === null) return 'neutral';
-    if (pct >= 70) return 'accuracy-high';
-    if (pct >= 50) return 'accuracy-mid';
-    return 'accuracy-low';
-  }
-
-  function renderHistory(data) {
-    const { records, stats } = data;
-
-    // Stats
-    const statsEl = document.getElementById('historyStats');
-    statsEl.innerHTML = [
-      { val: stats.total,    lbl: 'Proyecciones guardadas', cls: 'neutral' },
-      { val: stats.closed,   lbl: 'Con cierre registrado',  cls: 'neutral' },
-      { val: stats.pending,  lbl: 'Pendientes de cierre',   cls: 'neutral' },
-      { val: stats.directionAccuracy !== null ? stats.directionAccuracy + '%' : '—', lbl: 'Acierto dirección', cls: accuracyClass(stats.directionAccuracy) },
-      { val: stats.rangeAccuracy     !== null ? stats.rangeAccuracy     + '%' : '—', lbl: 'Precio en rango',   cls: accuracyClass(stats.rangeAccuracy) },
-    ].map(s => `
-      <div class="stat-box ${s.cls}">
-        <div class="stat-val">${s.val}</div>
-        <div class="stat-lbl">${s.lbl}</div>
-      </div>`).join('');
-
-    // Tabla
-    const tbody = document.getElementById('historyBody');
-    if (!records || records.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">
-        Sin registros aún. La proyección diaria se guarda automáticamente a las 9:00 ART.
-      </td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = records.map(r => {
-      const dirResult = r.wasDirectionCorrect === true
-        ? `<span class="result-badge result-correct">✓ Correcto</span>`
-        : r.wasDirectionCorrect === false
-        ? `<span class="result-badge result-incorrect">✗ Incorrecto</span>`
-        : `<span class="result-badge result-pending">⏳ Pendiente</span>`;
-
-      const rangeResult = r.wasInRange === true
-        ? `<span class="result-badge result-correct">✓ Sí</span>`
-        : r.wasInRange === false
-        ? `<span class="result-badge result-incorrect">✗ No</span>`
-        : `<span class="result-badge result-pending">⏳ —</span>`;
-
-      const isAlcista = r.directionArrow?.includes('▲') || r.directionArrow?.includes('↗');
-      const isBajista = r.directionArrow?.includes('▼') || r.directionArrow?.includes('↘');
-      const dirColor  = 'color:var(--text)';
-
-      return `<tr>
-        <td>${r.date}</td>
-        <td style="color:var(--muted)">${r.dayName}</td>
-        <td class="direction-cell" style="${dirColor}">${r.directionArrow || ''} ${r.direction}</td>
-        <td style="font-variant-numeric:tabular-nums">$${r.estimatedMin?.toLocaleString('es-AR')} – $${r.estimatedMax?.toLocaleString('es-AR')}</td>
-        <td style="font-variant-numeric:tabular-nums">$${r.spot?.toLocaleString('es-AR')}</td>
-        <td style="font-variant-numeric:tabular-nums">${r.actualClose ? '$' + r.actualClose.toLocaleString('es-AR') : '<span style="color:var(--muted)">Sin registrar</span>'}</td>
-        <td>${dirResult}</td>
-        <td>${rangeResult}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  async function fetchProjectionHistory() {
-    try {
-      const res  = await fetch('/api/projection/history');
-      const json = await res.json();
-      if (json.ok) renderHistory({ records: json.records, stats: json.stats });
-    } catch {}
-  }
-
-  async function saveProjectionRecord() {
-    // Fallback manual: el guardado principal lo dispara GitHub Actions a las 9:00 ART.
-    try {
-      await fetch('/api/projection/record', { method: 'POST' });
-      fetchProjectionHistory();
-    } catch {}
-  }
-
-  async function sendClosePrice(price) {
-    if (closeSentToday) return;
-    try {
-      const res  = await fetch('/api/projection/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ closePrice: price }),
-      });
-      const json = await res.json();
-      if (json.ok && json.updated) {
-        closeSentToday = true;
-        fetchProjectionHistory();
-      }
-    } catch {}
-  }
-
-  // ── Fetch Proyección ──
-  async function fetchProjection() {
-    if (projectionLocked) return;
-    try {
-      const res  = await fetch('/api/projection');
-      const json = await res.json();
-      if (!json.ok) return;
-      if (json.pending) {
-        renderProjectionPending(json);
-        return;
-      }
-      if (json.data) {
-        if (json.stored || json.locked) projectionLocked = true;
-        renderProjection(json.data, {
-          stored: Boolean(json.stored || json.locked),
-          preview: Boolean(json.preview),
-        });
-      }
-    } catch {}
-  }
-
   // ── Init & loops ──
   async function init() {
     await syncTcHistoryToServer();
     await loadTcHistoryIndex();
-    await Promise.all([fetchFX(), fetchNews(), fetchProjection()]);
-    fetchProjectionHistory();
+    await Promise.all([fetchFX(), fetchNews()]);
   }
 
   function startFXLoop() {
@@ -1873,8 +1522,6 @@
       fetchHistory();
       startProgressBar(REFRESH_INTERVAL);
     }, REFRESH_INTERVAL);
-
-    // Proyección: una sola carga (fija a las 9:00 ART; no sigue al TC en vivo).
   }
 
   document.getElementById('toggleTcHistoryBtn').addEventListener('click', toggleTcHistoryPanel);
