@@ -1125,6 +1125,36 @@
     return art.getUTCHours() * 60 + art.getUTCMinutes();
   }
 
+  function getARTMinutesNow() {
+    const now = new Date();
+    return (now.getUTCHours() - 3 + 24) % 24 * 60 + now.getUTCMinutes();
+  }
+
+  /** Durante la rueda en vivo: no usar puntos posteriores al horario actual. */
+  function filterPointsForLiveDay(points, dateStr) {
+    if (dateStr !== todayARTString() || !isChartRecordingHours()) return points || [];
+    const artNow = getARTMinutesNow();
+    return (points || []).filter(p => {
+      const m = toARTMinutes(p.ts);
+      return m >= 10 * 60 && m <= artNow + SLOT_MIN;
+    });
+  }
+
+  function lastNonNullIndex(values) {
+    for (let i = values.length - 1; i >= 0; i--) {
+      if (values[i] != null) return i;
+    }
+    return -1;
+  }
+
+  /** Corta slots/valores al último dato real (no dibujar hasta las 15:00 si aún no llegó). */
+  function trimLiveChartSeries(slots, values) {
+    const last = lastNonNullIndex(values);
+    if (last < 0) return { slots, values };
+    const end = last + 1;
+    return { slots: slots.slice(0, end), values: values.slice(0, end) };
+  }
+
   function normalizeChartPoints(points) {
     const slots  = generateSlots(); // ['10:00','10:10',...,'15:00']
     const values = new Array(SLOTS_COUNT).fill(null);
@@ -1164,7 +1194,7 @@
         pointHoverRadius: 5,
         fill: true,
         tension: 0.3,
-        spanGaps: true,
+        spanGaps: false,
       }],
     };
   }
@@ -1247,7 +1277,10 @@
     const title = document.getElementById('chartTitle');
 
     const valid = (daySeries || [])
-      .map(d => ({ date: d.date, ...normalizeChartPoints(d.points) }))
+      .map(d => ({
+        date: d.date,
+        ...normalizeChartPoints(filterPointsForLiveDay(d.points, d.date)),
+      }))
       .filter(d => d.realCount > 0);
 
     if (valid.length === 0) {
@@ -1263,16 +1296,27 @@
     wrapper.style.display = 'block';
 
     const th = getChartTheme();
-    const slots = generateSlots();
+    let slots = generateSlots();
     const datasets = [];
     const allReal = [];
+    const isTodayLive =
+      valid.length === 1
+      && valid[0].date === todayARTString()
+      && isChartRecordingHours();
 
     valid.forEach((day, i) => {
-      allReal.push(...day.realValues);
+      let chartValues = day.values;
+      if (isTodayLive) {
+        const trimmed = trimLiveChartSeries(slots, chartValues);
+        slots = trimmed.slots;
+        chartValues = trimmed.values;
+      }
+      const realForScale = chartValues.filter(v => v != null);
+      allReal.push(...realForScale);
       const color = TC_CHART_COLORS[i % TC_CHART_COLORS.length];
       datasets.push({
         label: formatStoredDay(day.date),
-        data: day.values,
+        data: chartValues,
         borderColor: color,
         backgroundColor: color + '33',
         borderWidth: 2.2,
@@ -1280,7 +1324,7 @@
         pointHoverRadius: 4,
         fill: false,
         tension: 0.3,
-        spanGaps: true,
+        spanGaps: false,
       });
     });
 
@@ -1297,7 +1341,7 @@
     fxChart = updateChartInstance(fxChart, 'fxChart', { labels: slots, datasets }, options);
 
     const lastDay = valid[valid.length - 1];
-    const lastVal = lastDay.realValues[lastDay.realValues.length - 1];
+    const lastVal = allReal[allReal.length - 1];
     const fixedNote = isChartRecordingHours() ? '' : ' · rueda cerrada';
     const totalPts = valid.reduce((n, d) => n + d.realCount, 0);
     subtitle.textContent = `${totalPts} puntos · última $${fmt(lastVal)}${fixedNote}`;
@@ -1463,7 +1507,9 @@
   }
 
   function buildHistoryDayChart(date, points, canvas) {
-    const { slots, values, realValues, realCount } = normalizeChartPoints(points);
+    const { slots, values, realValues, realCount } = normalizeChartPoints(
+      filterPointsForLiveDay(points, date)
+    );
     if (realCount === 0 || !canvas) return null;
 
     const th = getChartTheme();
@@ -1478,7 +1524,7 @@
         borderWidth: 2,
         pointRadius: 0,
         tension: 0.3,
-        spanGaps: true,
+        spanGaps: false,
         fill: true,
       }],
     };
