@@ -307,56 +307,6 @@
     .previous-chart-title { font-size: .72rem; font-weight: 700; color: var(--text); }
     .previous-chart-subtitle { font-size: .62rem; color: var(--muted); }
     .previous-chart-wrapper { position: relative; height: 92px; }
-    .tc-history-panel {
-      display: none;
-      margin-top: .85rem;
-      padding-top: .75rem;
-      border-top: 1px solid var(--border);
-    }
-    .tc-history-filters {
-      display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem;
-      margin-bottom: .75rem;
-    }
-    .tc-history-filters label {
-      display: flex; flex-direction: column; gap: .2rem;
-      font-size: .62rem; color: var(--muted); font-weight: 600;
-    }
-    .tc-history-filters input[type="date"] {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 6px;
-      padding: .35rem .5rem;
-      font-size: .75rem;
-    }
-    .tc-history-apply-btn {
-      border: 1px solid var(--blue);
-      background: rgba(88,166,255,.12);
-      color: var(--blue);
-      font-size: .72rem;
-      font-weight: 700;
-      padding: .4rem .75rem;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .tc-history-apply-btn:hover { filter: brightness(1.1); }
-    .tc-history-hint { font-size: .62rem; color: var(--muted); margin-bottom: .5rem; }
-    .tc-history-list { display: flex; flex-direction: column; gap: .85rem; }
-    .tc-history-day-card {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .6rem .65rem;
-      background: var(--bg);
-    }
-    .tc-history-day-head {
-      display: flex; justify-content: space-between; align-items: baseline;
-      margin-bottom: .4rem; font-size: .72rem;
-    }
-    .tc-history-day-head strong { color: var(--text); }
-    .tc-history-day-head span { color: var(--muted); }
-    .tc-history-day-chart-wrap { position: relative; height: 110px; }
-    .tc-history-day-meta { font-size: .62rem; color: var(--muted); margin-top: .35rem; }
-    .tc-history-empty { font-size: .75rem; color: var(--muted); padding: .5rem 0; }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -483,22 +433,6 @@
     .spread-price-item .sp-lbl { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
     .spread-price-item .sp-val { font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-    /* ── Toggle historial ── */
-    .history-toggle-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: .62rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      padding: .15rem .6rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: border-color .15s, color .15s;
-    }
-    .history-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
-
     /* ── Responsive (notebook, tablet y móvil) ── */
     @media (max-width: 1280px) {
       .fx-global-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -549,16 +483,6 @@
       .usd-footer { flex-direction: column; align-items: flex-start; gap: .25rem; }
 
       .chart-card { padding: .7rem .75rem; }
-      .chart-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: .5rem;
-      }
-      .chart-header .history-toggle-btn {
-        align-self: flex-start;
-        min-height: 2.25rem;
-        padding: .4rem .75rem;
-      }
       .chart-title { font-size: .78rem; line-height: 1.35; }
       .chart-subtitle { font-size: .64rem; }
       .chart-wrapper,
@@ -625,22 +549,6 @@
       .spread-price-item { text-align: left; }
       .spread-signal { font-size: .64rem; line-height: 1.35; }
 
-      .tc-history-filters {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .tc-history-filters label { width: 100%; }
-      .tc-history-filters input[type="date"] {
-        width: 100%;
-        min-height: 2.5rem;
-        font-size: 16px;
-      }
-      .tc-history-apply-btn {
-        width: 100%;
-        min-height: 2.5rem;
-        font-size: .8rem;
-      }
-
       .news-grid { grid-template-columns: 1fr; gap: .75rem; }
       .news-card { padding: .75rem .85rem; }
       .news-title { font-size: .86rem; }
@@ -704,7 +612,6 @@
             <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
             <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
           </div>
-          <button type="button" class="history-toggle-btn" id="toggleTcHistoryBtn">Ver historial ▾</button>
         </div>
         <div id="chartContainer">
           <div class="chart-no-data" id="chartNoData">
@@ -715,21 +622,6 @@
           </div>
           <div class="chart-wrapper" id="chartWrapper" style="display:none">
             <canvas id="fxChart"></canvas>
-          </div>
-        </div>
-        <div class="tc-history-panel" id="tcHistoryPanel">
-          <div class="tc-history-hint" id="tcHistoryHint">Ruedas guardadas desde el deploy · elegí un intervalo de fechas</div>
-          <div class="tc-history-filters">
-            <label>Desde
-              <input type="date" id="tcHistFrom" />
-            </label>
-            <label>Hasta
-              <input type="date" id="tcHistTo" />
-            </label>
-            <button type="button" class="tc-history-apply-btn" id="tcHistApply">Mostrar gráficos</button>
-          </div>
-          <div class="tc-history-list" id="tcHistoryList">
-            <p class="tc-history-empty">Abrí el historial y elegí fechas para ver cada rueda.</p>
           </div>
         </div>
       </div>
@@ -809,7 +701,7 @@
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem(THEME_KEY, next);
     updateThemeToggleUI();
-    if (fxChart || previousFxChart) fetchHistory();
+    if (fxChart) fetchHistory();
   }
 
   function toggleTheme() {
@@ -834,8 +726,6 @@
   }
 
   let fxChart = null;
-  let tcHistoryIndex = { startDate: null, days: [] };
-  const tcHistoryCharts = new Map();
   const TC_CHART_COLORS = ['#58a6ff', '#f0883e', '#3fb950', '#d2a8ff', '#f85149'];
   let fxErrorCount = 0;
   let usdStaleStreak = 0;
@@ -1359,13 +1249,13 @@
   }
 
   function lsPruneOldDays() {
-    const start = tcHistoryIndex.startDate || todayARTString();
+    const today = todayARTString();
     try {
       Object.keys(localStorage)
         .filter(key => key.startsWith(HISTORY_PREFIX))
         .forEach(key => {
           const date = key.slice(HISTORY_PREFIX.length);
-          if (date < start) localStorage.removeItem(key);
+          if (date !== today) localStorage.removeItem(key);
         });
     } catch {}
   }
@@ -1385,20 +1275,9 @@
   }
 
   function lsCollectLocalDays() {
-    const days = {};
-    const start = tcHistoryIndex.startDate || todayARTString();
-    try {
-      Object.keys(localStorage)
-        .filter(key => key.startsWith(HISTORY_PREFIX))
-        .forEach(key => {
-          const date = key.slice(HISTORY_PREFIX.length);
-          if (date >= start) {
-            const pts = lsLoad(date);
-            if (pts.length) days[date] = pts;
-          }
-        });
-    } catch {}
-    return days;
+    const today = todayARTString();
+    const pts = lsLoad(today);
+    return pts.length ? { [today]: pts } : {};
   }
 
   async function syncTcHistoryToServer() {
@@ -1413,160 +1292,22 @@
     } catch {}
   }
 
-  function destroyTcHistoryCharts() {
-    tcHistoryCharts.forEach(chart => chart.destroy());
-    tcHistoryCharts.clear();
-  }
-
-  function canvasIdForDate(date) {
-    return `tcHistChart_${date.replace(/-/g, '')}`;
-  }
-
-  function initTcHistoryDateInputs() {
-    const fromEl = document.getElementById('tcHistFrom');
-    const toEl = document.getElementById('tcHistTo');
-    const days = tcHistoryIndex.days || [];
-    const start = tcHistoryIndex.startDate || todayARTString();
+  async function fetchTodayChartPoints() {
     const today = todayARTString();
-    const minDate = days.length ? days[days.length - 1].date : start;
-    const maxDate = days.length ? days[0].date : today;
-
-    fromEl.min = start;
-    fromEl.max = maxDate;
-    toEl.min = start;
-    toEl.max = maxDate;
-
-    const defaultFrom = days.length > 6 ? days[6].date : minDate;
-    fromEl.value = defaultFrom;
-    toEl.value = maxDate;
-  }
-
-  function toggleTcHistoryPanel() {
-    const panel = document.getElementById('tcHistoryPanel');
-    const btn = document.getElementById('toggleTcHistoryBtn');
-    const open = panel.style.display === 'none' || !panel.style.display;
-    panel.style.display = open ? 'block' : 'none';
-    btn.textContent = open ? 'Ocultar historial ▴' : 'Ver historial ▾';
-    if (open) {
-      applyTcHistoryRange();
-    } else {
-      destroyTcHistoryCharts();
-    }
-  }
-
-  function buildHistoryDayChart(date, points, canvas) {
-    const { slots, values, realValues, realCount } = normalizeChartPoints(
-      filterPointsForLiveDay(points, date),
-      date
-    );
-    if (realCount === 0 || !canvas) return null;
-
-    const th = getChartTheme();
-    const color = TC_CHART_COLORS[0];
-    const chartData = {
-      labels: slots,
-      datasets: [{
-        label: formatStoredDay(date),
-        data: values,
-        borderColor: color,
-        backgroundColor: color + '33',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-        spanGaps: true,
-        fill: true,
-      }],
-    };
-    const options = makeIntradayChartOptions(slots, realValues, th, true);
-    return new Chart(canvas.getContext('2d'), { type: 'line', data: chartData, options });
-  }
-
-  async function applyTcHistoryRange() {
-    const list = document.getElementById('tcHistoryList');
-    const from = document.getElementById('tcHistFrom').value;
-    const to = document.getElementById('tcHistTo').value;
-    const days = (tcHistoryIndex.days || [])
-      .filter(d => (!from || d.date >= from) && (!to || d.date <= to))
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    destroyTcHistoryCharts();
-
-    if (!days.length) {
-      list.innerHTML = '<p class="tc-history-empty">No hay días con datos en ese intervalo. Probá ampliar el rango.</p>';
-      return;
-    }
-
-    list.innerHTML = days.map(d => `
-      <article class="tc-history-day-card">
-        <div class="tc-history-day-head">
-          <strong>${formatStoredDay(d.date)}</strong>
-          <span>${d.pointCount ?? '—'} puntos</span>
-        </div>
-        <div class="tc-history-day-chart-wrap">
-          <canvas id="${canvasIdForDate(d.date)}"></canvas>
-        </div>
-        <div class="tc-history-day-meta" id="meta_${canvasIdForDate(d.date)}">Cargando…</div>
-      </article>
-    `).join('');
-
-    for (const d of days) {
-      const points = await fetchDayPoints(d.date);
-      const canvas = document.getElementById(canvasIdForDate(d.date));
-      const meta = document.getElementById(`meta_${canvasIdForDate(d.date)}`);
-      const { realValues, realCount } = normalizeChartPoints(points, d.date);
-
-      if (realCount === 0) {
-        if (meta) meta.textContent = 'Sin puntos dentro de la rueda (10:00–15:00)';
-        continue;
-      }
-
-      const chart = buildHistoryDayChart(d.date, points, canvas);
-      if (chart) tcHistoryCharts.set(d.date, chart);
-
-      const first = realValues[0];
-      const last = realValues[realValues.length - 1];
-      const delta = last - first;
-      const pct = first ? (delta / first) * 100 : 0;
-      const sign = delta > 0 ? '+' : '';
-      if (meta) {
-        meta.textContent = `${realCount} puntos en rueda · ${sign}$${fmt(delta)} (${sign}${pct.toFixed(2)}%) · cierre $${fmt(last)}`;
-      }
-    }
-  }
-
-  async function fetchDayPoints(date) {
     try {
-      const res = await fetch(`/api/tc-history/${date}`, { cache: 'no-store' });
+      const res = await fetch(`/api/tc-history/${today}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.ok && json.points?.length) return json.points;
     } catch {}
-    return lsLoad(date);
+    return lsLoad(today);
   }
 
   async function buildTodayChart() {
     const today = todayARTString();
-    const points = await fetchDayPoints(today);
+    const points = await fetchTodayChartPoints();
     document.getElementById('chartTitle').textContent =
       `USD/ARS Mayorista — hoy (${formatStoredDay(today)})`;
     buildChartCompare([{ date: today, points }]);
-  }
-
-  async function loadTcHistoryIndex() {
-    try {
-      const res = await fetch('/api/tc-history', { cache: 'no-store' });
-      const json = await res.json();
-      if (!json.ok) return;
-      tcHistoryIndex = { startDate: json.startDate, days: json.days || [] };
-      const n = json.days.length;
-      document.getElementById('tcHistoryHint').textContent = n
-        ? `${n} día(s) guardado(s) desde ${formatStoredDay(json.startDate)} · ${json.storage || 'servidor'}`
-        : `Sin días guardados aún (desde ${formatStoredDay(json.startDate)}). Se llenan en cada rueda.`;
-      initTcHistoryDateInputs();
-      await buildTodayChart();
-    } catch {
-      document.getElementById('tcHistoryHint').textContent = 'No se pudo cargar el índice de historial.';
-      await buildTodayChart();
-    }
   }
 
   async function fetchHistory() {
@@ -1666,7 +1407,7 @@
   // ── Init & loops ──
   async function init() {
     await syncTcHistoryToServer();
-    await loadTcHistoryIndex();
+    await buildTodayChart();
     await Promise.all([fetchFX(), fetchNews()]);
   }
 
@@ -1686,15 +1427,11 @@
     }, REFRESH_INTERVAL);
   }
 
-  document.getElementById('toggleTcHistoryBtn').addEventListener('click', toggleTcHistoryPanel);
-  document.getElementById('tcHistApply').addEventListener('click', applyTcHistoryRange);
-
   let chartResizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(chartResizeTimer);
     chartResizeTimer = setTimeout(() => {
       if (fxChart) fxChart.resize();
-      tcHistoryCharts.forEach(c => c.resize());
     }, 120);
   });
 
