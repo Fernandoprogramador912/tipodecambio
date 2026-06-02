@@ -72,6 +72,11 @@ function applyTick(tick) {
     topic: MD_TOPIC,
     updatedAt: Date.now(),
   };
+
+  try {
+    const { maybeRecordTick } = require('../services/tcIntradayRecorderService');
+    maybeRecordTick(tick.price, tick.asOf);
+  } catch { /* noop */ }
 }
 
 function touchActivity() {

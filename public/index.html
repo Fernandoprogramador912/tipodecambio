@@ -1292,14 +1292,24 @@
     } catch {}
   }
 
+  function mergeChartPoints(serverPts, localPts) {
+    const map = new Map();
+    for (const p of [...(serverPts || []), ...(localPts || [])]) {
+      if (!p?.ts || p.venta == null) continue;
+      map.set(p.ts, { ts: p.ts, venta: p.venta, compra: p.compra ?? p.venta });
+    }
+    return [...map.values()].sort((a, b) => a.ts.localeCompare(b.ts));
+  }
+
   async function fetchTodayChartPoints() {
     const today = todayARTString();
+    let serverPts = [];
     try {
       const res = await fetch(`/api/tc-history/${today}`, { cache: 'no-store' });
       const json = await res.json();
-      if (json.ok && json.points?.length) return json.points;
+      if (json.ok && Array.isArray(json.points)) serverPts = json.points;
     } catch {}
-    return lsLoad(today);
+    return mergeChartPoints(serverPts, lsLoad(today));
   }
 
   async function buildTodayChart() {

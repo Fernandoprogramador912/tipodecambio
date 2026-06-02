@@ -19,6 +19,7 @@ const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/future
 const a3MatrizWs = require('./src/providers/a3MatrizWsProvider');
 const wsProvider = require('./src/providers/wsProvider');
 const tcIntradayHistory = require('./src/services/tcIntradayHistoryService');
+const { startTcIntradayRecorder, pulseFromA3 } = require('./src/services/tcIntradayRecorderService');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -189,6 +190,16 @@ app.post('/api/projection/close', async (req, res) => {
 });
 
 // --- API: historial intradiario USD/ARS por día ---
+/** Keep-alive / cron: persiste un tick si hay rueda (10:00–15:00 ART). */
+app.get('/api/tc-history/heartbeat', async (req, res) => {
+  try {
+    const pulse = pulseFromA3();
+    res.json({ ok: true, ...pulse, ts: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/api/tc-history', async (req, res) => {
   try {
     const index = await tcIntradayHistory.listDays();
@@ -283,7 +294,13 @@ if (require.main === module) {
   app.listen(PORT, host, () => {
     console.log(`\n  Dashboard TC + Noticias\n`);
     console.log(`  Escuchando en http://${host}:${PORT}`);
-    console.log(`  USD (UI mayorista): ${FUTURES_ENABLED ? 'A3/Primary futuro DLR' : 'fallback Ámbito'}\n`);
+    console.log(`  USD (UI mayorista): ${FUTURES_ENABLED ? 'A3/Primary futuro DLR' : 'fallback Ámbito'}`);
+    if (FUTURES_ENABLED) {
+      startTcIntradayRecorder();
+      console.log('  Gráfico intradiario: registro automático en servidor (10:00–15:00 ART)\n');
+    } else {
+      console.log('');
+    }
   });
 }
 
