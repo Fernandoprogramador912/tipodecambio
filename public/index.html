@@ -116,15 +116,31 @@
     }
     .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* ── Fila 1: USD + EUR + Spread MEP ── */
-    .fx-top-grid {
+    /* ── Hero: USD mayorista + gráfico intradiario ── */
+    .usd-chart-hero {
       display: grid;
-      grid-template-columns: 2fr minmax(7.5rem, 0.75fr) 1.6fr;
+      grid-template-columns: minmax(240px, 0.9fr) minmax(300px, 1.4fr);
+      gap: .75rem;
+      align-items: stretch;
+    }
+    .usd-chart-hero .usd-card { height: 100%; }
+    .usd-chart-hero .chart-card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .usd-chart-hero #chartContainer { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .usd-chart-hero .chart-wrapper { flex: 1; min-height: 185px; height: auto; }
+    @media (max-width: 900px) { .usd-chart-hero { grid-template-columns: 1fr; } }
+
+    /* ── Fila secundaria: EUR + Spread MEP ── */
+    .fx-secondary-grid {
+      display: grid;
+      grid-template-columns: minmax(7.5rem, 0.35fr) 1fr;
       gap: .75rem;
       align-items: start;
     }
-    @media (max-width: 1000px) { .fx-top-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 600px)  { .fx-top-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .fx-secondary-grid { grid-template-columns: 1fr; } }
 
     /* ── Cruces internacionales vs USD ── */
     .fx-global-card {
@@ -169,15 +185,6 @@
     .fx-global-chg.deprecia { color: var(--red); }
     .fx-global-chg.estable { color: var(--muted); }
     .fx-global-empty { font-size: .82rem; color: var(--muted); }
-
-    /* ── Fila 2: Proyección + Gráfico ── */
-    .proj-chart-grid {
-      display: grid;
-      grid-template-columns: 1fr 1.5fr;
-      gap: .75rem;
-      align-items: start;
-    }
-    @media (max-width: 860px) { .proj-chart-grid { grid-template-columns: 1fr; } }
 
     /* ── Card USD (grande) ── */
     .usd-card {
@@ -584,7 +591,6 @@
 
     @media (max-width: 480px) {
       .news-grid { grid-template-columns: 1fr; }
-      .proj-chart-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -612,10 +618,10 @@
 
 <main>
 
-  <!-- FILA 1: USD + EUR + Spread MEP -->
+  <!-- Hero: USD mayorista + gráfico de la rueda -->
   <section>
-    <div class="section-title">Tipos de cambio mayoristas · Spread MEP/Mayorista</div>
-    <div class="fx-top-grid">
+    <div class="section-title">Tipo de cambio mayorista · Rueda del día</div>
+    <div class="usd-chart-hero">
 
       <div class="usd-card skeleton" id="usdCard">
         <div class="card-header">
@@ -631,35 +637,6 @@
         <div class="usd-footer"><span>—</span></div>
       </div>
 
-      <div class="eur-card skeleton" id="eurCard">
-        <div class="fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/eu.svg" width="18" height="12" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="18" height="12" alt=""></span><span>EUR / ARS</span></div>
-        <div class="eur-values">
-          <span class="lbl">Venta</span>
-          <span class="eur-venta-val">—</span>
-        </div>
-      </div>
-
-      <div class="spread-card skeleton" id="spreadCard">
-        <div style="color:var(--muted);font-size:.82rem;">Cargando MEP...</div>
-      </div>
-
-    </div>
-  </section>
-
-  <section>
-    <div class="section-title">Mercado internacional · Cruces vs USD</div>
-    <div class="fx-global-card skeleton" id="fxGlobalCard">
-      <div class="fx-global-empty">Cargando cruces internacionales...</div>
-    </div>
-  </section>
-
-  <!-- FILA 2: Proyección + Gráfico -->
-  <section>
-    <div class="section-title">Proyección intradiaria · Evolución USD/ARS rueda</div>
-    <div class="proj-chart-grid">
-      <div class="proj-card skeleton" id="projCard">
-        <div style="color:var(--muted);font-size:.82rem;">Calculando proyección...</div>
-      </div>
       <div class="chart-card">
         <div class="chart-header">
           <div>
@@ -695,6 +672,40 @@
           </div>
         </div>
       </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Euro · Spread MEP / Mayorista</div>
+    <div class="fx-secondary-grid">
+
+      <div class="eur-card skeleton" id="eurCard">
+        <div class="fx-pair-label"><span class="fx-flags" aria-hidden="true"><img class="fx-flag-img" src="/flags/eu.svg" width="18" height="12" alt=""><img class="fx-flag-img" src="/flags/ar.svg" width="18" height="12" alt=""></span><span>EUR / ARS</span></div>
+        <div class="eur-values">
+          <span class="lbl">Venta</span>
+          <span class="eur-venta-val">—</span>
+        </div>
+      </div>
+
+      <div class="spread-card skeleton" id="spreadCard">
+        <div style="color:var(--muted);font-size:.82rem;">Cargando MEP...</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Mercado internacional · Cruces vs USD</div>
+    <div class="fx-global-card skeleton" id="fxGlobalCard">
+      <div class="fx-global-empty">Cargando cruces internacionales...</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Proyección intradiaria</div>
+    <div class="proj-card skeleton" id="projCard">
+      <div style="color:var(--muted);font-size:.82rem;">Calculando proyección...</div>
     </div>
   </section>
 
@@ -1140,22 +1151,21 @@
     });
   }
 
-  function lastNonNullIndex(values) {
-    for (let i = values.length - 1; i >= 0; i--) {
-      if (values[i] != null) return i;
-    }
-    return -1;
+  /** Eje hasta 15:00, pero sin valores en slots futuros (la línea no salta al cierre). */
+  function maskFutureSlots(values, dateStr) {
+    if (dateStr !== todayARTString() || !isChartRecordingHours()) return values;
+    const artNow = getARTMinutesNow();
+    if (artNow < 10 * 60) return values;
+    const lastAllowedIdx = Math.min(
+      SLOTS_COUNT - 1,
+      Math.floor((artNow - 10 * 60) / SLOT_MIN)
+    );
+    const out = values.slice();
+    for (let i = lastAllowedIdx + 1; i < out.length; i++) out[i] = null;
+    return out;
   }
 
-  /** Corta slots/valores al último dato real (no dibujar hasta las 15:00 si aún no llegó). */
-  function trimLiveChartSeries(slots, values) {
-    const last = lastNonNullIndex(values);
-    if (last < 0) return { slots, values };
-    const end = last + 1;
-    return { slots: slots.slice(0, end), values: values.slice(0, end) };
-  }
-
-  function normalizeChartPoints(points) {
+  function normalizeChartPoints(points, dateStr) {
     const slots  = generateSlots(); // ['10:00','10:10',...,'15:00']
     const values = new Array(SLOTS_COUNT).fill(null);
 
@@ -1170,8 +1180,9 @@
       }
     });
 
-    const realValues = values.filter(v => v !== null);
-    return { slots, values, realValues, realCount: realValues.length };
+    const masked = dateStr ? maskFutureSlots(values, dateStr) : values;
+    const realValues = masked.filter(v => v !== null);
+    return { slots, values: masked, realValues, realCount: realValues.length };
   }
 
   function chartScale(realValues) {
@@ -1194,7 +1205,7 @@
         pointHoverRadius: 5,
         fill: true,
         tension: 0.3,
-        spanGaps: false,
+        spanGaps: true,
       }],
     };
   }
@@ -1279,7 +1290,7 @@
     const valid = (daySeries || [])
       .map(d => ({
         date: d.date,
-        ...normalizeChartPoints(filterPointsForLiveDay(d.points, d.date)),
+        ...normalizeChartPoints(filterPointsForLiveDay(d.points, d.date), d.date),
       }))
       .filter(d => d.realCount > 0);
 
@@ -1296,35 +1307,25 @@
     wrapper.style.display = 'block';
 
     const th = getChartTheme();
-    let slots = generateSlots();
+    const slots = generateSlots(); // eje fijo 10:00–15:00; la línea avanza solo donde hay datos
     const datasets = [];
     const allReal = [];
-    const isTodayLive =
-      valid.length === 1
-      && valid[0].date === todayARTString()
-      && isChartRecordingHours();
+    const singleDay = valid.length === 1;
 
     valid.forEach((day, i) => {
-      let chartValues = day.values;
-      if (isTodayLive) {
-        const trimmed = trimLiveChartSeries(slots, chartValues);
-        slots = trimmed.slots;
-        chartValues = trimmed.values;
-      }
-      const realForScale = chartValues.filter(v => v != null);
-      allReal.push(...realForScale);
+      allReal.push(...day.realValues);
       const color = TC_CHART_COLORS[i % TC_CHART_COLORS.length];
       datasets.push({
         label: formatStoredDay(day.date),
-        data: chartValues,
+        data: day.values,
         borderColor: color,
-        backgroundColor: color + '33',
+        backgroundColor: color + (singleDay ? '44' : '33'),
         borderWidth: 2.2,
         pointRadius: 0,
         pointHoverRadius: 4,
-        fill: false,
+        fill: singleDay,
         tension: 0.3,
-        spanGaps: false,
+        spanGaps: true,
       });
     });
 
@@ -1508,7 +1509,8 @@
 
   function buildHistoryDayChart(date, points, canvas) {
     const { slots, values, realValues, realCount } = normalizeChartPoints(
-      filterPointsForLiveDay(points, date)
+      filterPointsForLiveDay(points, date),
+      date
     );
     if (realCount === 0 || !canvas) return null;
 
@@ -1524,7 +1526,7 @@
         borderWidth: 2,
         pointRadius: 0,
         tension: 0.3,
-        spanGaps: false,
+        spanGaps: true,
         fill: true,
       }],
     };
@@ -1564,7 +1566,7 @@
       const points = await fetchDayPoints(d.date);
       const canvas = document.getElementById(canvasIdForDate(d.date));
       const meta = document.getElementById(`meta_${canvasIdForDate(d.date)}`);
-      const { realValues, realCount } = normalizeChartPoints(points);
+      const { realValues, realCount } = normalizeChartPoints(points, d.date);
 
       if (realCount === 0) {
         if (meta) meta.textContent = 'Sin puntos dentro de la rueda (10:00–15:00)';
