@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Dashboard TC Argentina</title>
   <script>
     (function () {
@@ -131,7 +131,6 @@
     }
     .usd-chart-hero #chartContainer { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .usd-chart-hero .chart-wrapper { flex: 1; min-height: 185px; height: auto; }
-    @media (max-width: 900px) { .usd-chart-hero { grid-template-columns: 1fr; } }
 
     .fx-global-strip { margin-top: .75rem; min-width: 0; }
 
@@ -142,8 +141,6 @@
       gap: .75rem;
       align-items: start;
     }
-    @media (max-width: 700px) { .fx-secondary-grid { grid-template-columns: 1fr; } }
-
     /* ── Cruces internacionales vs USD (una fila, ancho completo) ── */
     .fx-global-card {
       background: var(--surface);
@@ -203,14 +200,6 @@
       font-size: clamp(.52rem, 0.72vw, .62rem); font-weight: 700;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       max-width: 100%;
-    }
-    @media (max-width: 720px) {
-      .fx-global-grid {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
-      }
-      .fx-global-item { flex: 0 0 auto; min-width: 5.5rem; }
     }
     .fx-global-chg.aprecia { color: var(--green); }
     .fx-global-chg.deprecia { color: var(--red); }
@@ -488,8 +477,157 @@
     }
     .history-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
 
-    @media (max-width: 480px) {
-      .news-grid { grid-template-columns: 1fr; }
+    /* ── Responsive (tablet y móvil) ── */
+    @media (max-width: 900px) {
+      .usd-chart-hero { grid-template-columns: 1fr; }
+      .usd-chart-hero .usd-card { height: auto; }
+      .news-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      html { font-size: 15px; }
+      main {
+        padding: .65rem .75rem calc(1.25rem + env(safe-area-inset-bottom, 0));
+        gap: .6rem;
+      }
+      header {
+        padding: .65rem .75rem;
+        padding-top: calc(.65rem + env(safe-area-inset-top, 0));
+      }
+      .header-right {
+        width: 100%;
+        justify-content: flex-start;
+        gap: .5rem .65rem;
+        font-size: .72rem;
+      }
+      #lastUpdate {
+        flex: 1 1 100%;
+        font-size: .62rem;
+        line-height: 1.35;
+      }
+      .theme-toggle { min-height: 2.25rem; }
+
+      .section-title {
+        font-size: .62rem;
+        flex-wrap: wrap;
+        gap: .35rem;
+      }
+      .section-title::after { display: none; }
+
+      .usd-card { padding: .85rem 1rem; }
+      .usd-col .val { font-size: 1.75rem; }
+      .usd-footer { flex-direction: column; align-items: flex-start; gap: .25rem; }
+
+      .chart-card { padding: .7rem .75rem; }
+      .chart-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .5rem;
+      }
+      .chart-header .history-toggle-btn {
+        align-self: flex-start;
+        min-height: 2.25rem;
+        padding: .4rem .75rem;
+      }
+      .chart-title { font-size: .78rem; line-height: 1.35; }
+      .chart-subtitle { font-size: .64rem; }
+      .chart-wrapper,
+      .usd-chart-hero .chart-wrapper {
+        height: min(42vw, 220px);
+        min-height: 170px;
+      }
+      .chart-no-data {
+        height: min(42vw, 220px);
+        min-height: 170px;
+        font-size: .75rem;
+        text-align: center;
+        padding: 0 .5rem;
+      }
+
+      .fx-global-strip { margin-top: .6rem; }
+      .fx-global-card { padding: .55rem .6rem; }
+      .fx-global-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .2rem;
+        margin-bottom: .5rem;
+      }
+      .fx-global-meta {
+        text-align: left;
+        white-space: normal;
+        line-height: 1.35;
+      }
+      .fx-global-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .4rem;
+        overflow: visible;
+      }
+      .fx-global-item {
+        flex: none;
+        min-width: 0;
+        padding: .5rem .55rem;
+      }
+      .fx-global-rate { font-size: .92rem; }
+      .fx-global-sub { font-size: .52rem; white-space: normal; }
+      .fx-global-chg { font-size: .58rem; white-space: normal; }
+
+      .fx-secondary-grid { grid-template-columns: 1fr; gap: .6rem; }
+      .eur-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: .65rem .75rem;
+        width: 100%;
+      }
+      .eur-card .fx-pair-label { margin-bottom: 0; }
+      .eur-values { align-items: flex-end; }
+      .eur-values .eur-venta-val { font-size: 1.15rem; }
+
+      .spread-card { padding: .75rem .85rem; }
+      .spread-main {
+        justify-content: space-around;
+        width: 100%;
+        gap: .75rem;
+      }
+      .spread-val-block .val { font-size: 1.25rem; }
+      .spread-prices {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .5rem;
+        width: 100%;
+      }
+      .spread-price-item { text-align: left; }
+      .spread-signal { font-size: .64rem; line-height: 1.35; }
+
+      .tc-history-filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .tc-history-filters label { width: 100%; }
+      .tc-history-filters input[type="date"] {
+        width: 100%;
+        min-height: 2.5rem;
+        font-size: 16px;
+      }
+      .tc-history-apply-btn {
+        width: 100%;
+        min-height: 2.5rem;
+        font-size: .8rem;
+      }
+
+      .news-grid { grid-template-columns: 1fr; gap: .75rem; }
+      .news-card { padding: .75rem .85rem; }
+      .news-title { font-size: .86rem; }
+    }
+
+    @media (max-width: 380px) {
+      .header-left .badge { display: none; }
+      .usd-col .val { font-size: 1.55rem; }
+      .fx-global-grid { gap: .35rem; }
+      .spread-main { flex-direction: column; align-items: stretch; }
+      .spread-val-block { text-align: left; }
     }
   </style>
 </head>
@@ -1526,6 +1664,15 @@
 
   document.getElementById('toggleTcHistoryBtn').addEventListener('click', toggleTcHistoryPanel);
   document.getElementById('tcHistApply').addEventListener('click', applyTcHistoryRange);
+
+  let chartResizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(chartResizeTimer);
+    chartResizeTimer = setTimeout(() => {
+      if (fxChart) fxChart.resize();
+      tcHistoryCharts.forEach(c => c.resize());
+    }, 120);
+  });
 
   init().then(() => {
     startFXLoop();
