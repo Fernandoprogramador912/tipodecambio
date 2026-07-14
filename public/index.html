@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Dashboard TC Argentina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
   <script>
     (function () {
       const t = localStorage.getItem('tcAR_theme');
@@ -31,14 +34,19 @@
       --row-hover: rgba(255, 255, 255, .02);
       --chart-grid: rgba(48, 54, 61, .5);
       --radius:    12px;
-      --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
+      --font:      'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+      --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --press-ink: #e8eef5;
+      --press-paper: #121820;
+      --press-rule: rgba(232, 238, 245, .18);
+      --press-muted: #9aa7b5;
     }
 
     [data-theme="light"] {
       color-scheme: light;
-      --bg:        #f0f2f5;
+      --bg:        #eef1f4;
       --surface:   #ffffff;
-      --surface2:  #f6f8fa;
+      --surface2:  #f4f6f8;
       --border:    #d0d7de;
       --text:      #1f2328;
       --muted:     #656d76;
@@ -49,6 +57,10 @@
       --accent:    #0969da;
       --row-hover: rgba(0, 0, 0, .03);
       --chart-grid: rgba(208, 215, 222, .8);
+      --press-ink: #15202b;
+      --press-paper: #f7f8fa;
+      --press-rule: rgba(21, 32, 43, .16);
+      --press-muted: #5b6775;
     }
 
     html {
@@ -58,12 +70,22 @@
     }
     body {
       font-family: var(--font);
-      background: var(--bg);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(88, 166, 255, .08), transparent 55%),
+        radial-gradient(900px 420px at 90% 0%, rgba(63, 185, 80, .05), transparent 50%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
       max-width: 100%;
       overflow-x: clip;
       transition: background .2s, color .2s;
+    }
+
+    [data-theme="light"] body {
+      background:
+        radial-gradient(1100px 480px at 8% -12%, rgba(9, 105, 218, .07), transparent 55%),
+        radial-gradient(800px 400px at 92% 0%, rgba(26, 127, 55, .04), transparent 50%),
+        var(--bg);
     }
 
     /* ── Header ── */
@@ -154,10 +176,39 @@
     /* ── Fila secundaria: EUR + Spread MEP ── */
     .fx-secondary-grid {
       display: grid;
-      grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-      gap: .75rem;
-      align-items: start;
+      grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+      gap: .85rem;
+      align-items: stretch;
       min-width: 0;
+    }
+    /* ── Card EUR ── */
+    .eur-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: .55rem;
+      min-width: 0;
+    }
+    .eur-card .fx-pair-label {
+      font-size: .62rem;
+      margin-bottom: 0;
+      justify-content: center;
+    }
+    .eur-card .fx-flag-img { width: 1.15rem; height: .78rem; }
+    .eur-values { display: flex; flex-direction: column; align-items: center; gap: .2rem; }
+    .eur-values .lbl { font-size: .58rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .eur-values .eur-venta-val {
+      font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      line-height: 1.05;
     }
     /* ── Cruces internacionales vs USD (una fila, ancho completo) ── */
     .fx-global-card {
@@ -262,19 +313,6 @@
       flex-wrap: wrap; gap: .2rem;
     }
     .usd-stale-hint { color: var(--amber, #d4a017); font-size: .62rem; }
-    /* ── Card EUR (compacta) ── */
-    .eur-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: .55rem .65rem;
-      align-self: start;
-    }
-    .eur-card .fx-pair-label { font-size: .58rem; margin-bottom: .35rem; }
-    .eur-card .fx-flag-img { width: 1rem; height: .68rem; }
-    .eur-values { display: flex; flex-direction: column; align-items: center; gap: .1rem; }
-    .eur-values .lbl { font-size: .55rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .eur-values .eur-venta-val { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.1; }
 
     /* ── Gráfico intradiario ── */
     .chart-card {
@@ -346,92 +384,387 @@
     }
 
     /* ── Noticias (estilo diario) ── */
-    .news-grid {
+    .press {
+      background: var(--press-paper);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.15rem 1.25rem 1.4rem;
+      color: var(--press-ink);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .press-masthead {
+      text-align: center;
+      border-bottom: 3px double var(--press-rule);
+      padding-bottom: .85rem;
+      margin-bottom: 1rem;
+    }
+    .press-kicker {
+      font-family: var(--font);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--press-muted);
+      margin-bottom: .35rem;
+    }
+    .press-name {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3.2vw, 2.35rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.05;
+      color: var(--press-ink);
+    }
+    .press-sub {
+      margin-top: .35rem;
+      font-size: .75rem;
+      color: var(--press-muted);
+    }
+    .press-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+      grid-template-columns: 1.35fr 1fr;
+      gap: 1.1rem 1.25rem;
+      align-items: stretch;
+    }
+    .press-lead {
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: inherit;
+      border-bottom: 1px solid var(--press-rule);
+      padding-bottom: 1rem;
+      margin-bottom: .25rem;
+      height: 100%;
+    }
+    .press-lead-media {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(88,166,255,.15), rgba(15,20,28,.9)),
+        var(--surface2);
+      margin-bottom: .75rem;
+    }
+    .press-lead-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform .45s ease;
+    }
+    .press-lead:hover .press-lead-media img { transform: scale(1.03); }
+    .press-lead-meta,
+    .press-side-meta,
+    .press-card-meta {
+      display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+      margin-bottom: .35rem;
+      font-size: .68rem;
+      color: var(--press-muted);
+    }
+    .press-source {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--blue);
+    }
+    .press-lead-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.35rem, 2.4vw, 1.95rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin-bottom: .45rem;
+    }
+    .press-lead-summary {
+      font-size: .92rem;
+      line-height: 1.45;
+      color: var(--press-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .press-credit {
+      margin-top: .4rem;
+      font-size: .58rem;
+      color: var(--press-muted);
+      opacity: .85;
+    }
+    .press-side {
+      display: flex;
+      flex-direction: column;
+      gap: .55rem;
+      border-left: 1px solid var(--press-rule);
+      padding-left: 1rem;
+      height: 100%;
+    }
+    .press-side-item {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: .55rem;
+      text-decoration: none;
+      color: inherit;
+      padding-bottom: .55rem;
+      border-bottom: 1px solid var(--press-rule);
+      flex: 1 1 auto;
+      min-height: 0;
+      align-content: start;
+    }
+    .press-side-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .press-side-thumb {
+      width: 96px; height: 68px;
+      overflow: hidden;
+      background: var(--surface2);
+    }
+    .press-side-thumb img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .press-side-thumb.placeholder,
+    .press-card-media.placeholder,
+    .press-lead-media.placeholder {
+      background:
+        repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 6px,
+          rgba(255,255,255,.03) 6px,
+          rgba(255,255,255,.03) 7px
+        ),
+        var(--surface2);
+    }
+    .press-side-title {
+      font-family: var(--font-display);
+      font-size: .88rem;
+      font-weight: 700;
+      line-height: 1.22;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .press-side .press-credit { display: none; }
+    .press-side-meta {
+      margin-bottom: .2rem;
+      gap: .35rem;
+      font-size: .62rem;
+    }
+    .press-side-meta .impact-tag { font-size: .55rem; padding: .08rem .32rem; }
+    .press-deck {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 1rem;
+      margin-top: .35rem;
+      padding-top: 1rem;
+      border-top: 3px double var(--press-rule);
+    }
+    .press-more {
+      grid-column: 1 / -1;
+      width: min(100%, 920px);
+      margin: .85rem auto 0;
+      padding: 1.15rem 1rem 0.35rem;
+      border-top: 1px solid var(--press-rule);
+    }
+    .press-more-heading {
+      text-align: center;
+      font-family: var(--font);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--press-muted);
+      margin-bottom: .85rem;
+      padding-bottom: .55rem;
+      border-bottom: 3px double var(--press-rule);
+    }
+    .press-more-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 1.5rem;
+    }
+    .press-more-item {
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+      text-decoration: none;
+      color: inherit;
+      text-align: center;
+      padding: .7rem .4rem;
+      border-bottom: 1px solid var(--press-rule);
+      min-width: 0;
+      transition: background .15s ease;
+    }
+    .press-more-item:hover {
+      background: var(--row-hover);
+    }
+    .press-more-item:hover .press-more-title { color: var(--blue); }
+    .press-more-source {
+      font-size: .6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--blue);
+    }
+    .press-more-title {
+      font-family: var(--font-display);
+      font-size: .95rem;
+      font-weight: 700;
+      line-height: 1.28;
+      max-width: 36ch;
+      margin-inline: auto;
+    }
+    .press-card {
+      display: flex;
+      flex-direction: column;
+      gap: .45rem;
+      text-decoration: none;
+      color: inherit;
       min-width: 0;
     }
-    .news-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: .85rem 1rem 1rem;
-      display: flex; flex-direction: column;
-      gap: .45rem;
-      transition: border-color .2s, transform .15s, box-shadow .15s;
-      text-decoration: none; color: inherit;
+    .press-card-media {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: var(--surface2);
     }
-    .news-card:hover {
-      border-color: var(--blue);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    .press-card-media img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform .4s ease;
     }
-    [data-theme="light"] .news-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .08); }
-    .news-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-    .news-source { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--blue); }
-    .news-date { font-size: .68rem; color: var(--muted); margin-left: auto; }
-    .impact-tag { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .1rem .4rem; border-radius: 4px; }
+    .press-card:hover .press-card-media img { transform: scale(1.04); }
+    .press-card-title {
+      font-family: var(--font-display);
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .press-card-summary {
+      font-size: .78rem;
+      line-height: 1.4;
+      color: var(--press-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .impact-tag { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .1rem .4rem; border-radius: 3px; }
     .impact-muy_alto { background: rgba(248,81,73,.2); color: var(--red); }
     .impact-alto     { background: rgba(210,153,34,.2); color: var(--yellow); }
     .impact-medio    { background: rgba(88,166,255,.15); color: var(--blue); }
     .impact-bajo     { background: rgba(139,148,158,.1); color: var(--muted); }
-    .news-title { font-size: .9rem; font-weight: 600; line-height: 1.4; color: var(--text); }
-    .news-summary { font-size: .78rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--muted); font-size: .88rem; grid-column: 1/-1; }
     .skeleton { animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+    @media (max-width: 900px) {
+      .press-layout { grid-template-columns: 1fr; }
+      .press-side {
+        border-left: 0;
+        padding-left: 0;
+        border-top: 1px solid var(--press-rule);
+        padding-top: .9rem;
+      }
+      .press-deck { grid-template-columns: 1fr 1fr; }
+      .press-more { width: 100%; padding-inline: .25rem; }
+      .press-more-grid { grid-template-columns: 1fr; gap: 0; }
+      .press-more-title { max-width: none; }
+    }
+    @media (max-width: 640px) {
+      .press { padding: .85rem .8rem 1rem; }
+      .press-side-item { grid-template-columns: 88px 1fr; }
+      .press-side-thumb { width: 88px; height: 64px; }
+      .press-deck { grid-template-columns: 1fr; }
+    }
 
     /* ── Card Spread MEP/Mayorista ── */
     .spread-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: .85rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: .65rem;
+      padding: 1rem 1.25rem;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      grid-template-areas:
+        "title title"
+        "main prices"
+        "signal signal";
+      column-gap: 1.75rem;
+      row-gap: .75rem;
+      align-items: center;
+      min-width: 0;
     }
+    .spread-head { grid-area: title; }
+    .spread-main-wrap { grid-area: main; min-width: 0; }
+    .spread-prices { grid-area: prices; min-width: 0; }
+    .spread-foot { grid-area: signal; min-width: 0; }
     .spread-title {
       font-size: .62rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .07em;
       color: var(--muted);
-      margin-bottom: .1rem;
+      text-align: center;
     }
     .spread-main {
       display: flex;
-      gap: 1.25rem;
+      gap: 1.5rem;
       align-items: flex-end;
+      justify-content: space-evenly;
       flex-wrap: wrap;
     }
-    .spread-val-block { text-align: center; }
-    .spread-val-block .label { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .15rem; }
-    .spread-val-block .val   { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+    .spread-val-block { text-align: center; flex: 1 1 auto; }
+    .spread-val-block .label { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; margin-bottom: .2rem; }
+    .spread-val-block .val   { font-size: clamp(1.25rem, 2vw, 1.55rem); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
     .spread-val-block .val.positive { color: var(--text); }
     .spread-val-block .val.neutral  { color: var(--text); }
     .spread-val-block .val.negative { color: var(--text); }
 
+    .spread-prices {
+      display: flex;
+      gap: 1.25rem;
+      justify-content: space-evenly;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: .55rem .75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .spread-price-item { text-align: center; min-width: 7rem; }
+    .spread-price-item .sp-lbl { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
+    .spread-price-item .sp-val { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: .15rem; }
+
     .spread-signal {
       display: flex;
       align-items: center;
-      gap: .4rem;
-      padding: .35rem .7rem;
-      border-radius: 6px;
-      font-size: .68rem;
+      justify-content: center;
+      gap: .45rem;
+      padding: .45rem .85rem;
+      border-radius: 8px;
+      font-size: .72rem;
       font-weight: 700;
+      width: 100%;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .spread-signal::before {
+      content: '';
+      width: .55rem; height: .55rem;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
     }
     .spread-signal.hot   { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
     .spread-signal.warm  { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
     .spread-signal.cold  { background: rgba(139,148,158,.1); color: var(--muted);  border: 1px solid var(--border); }
-
-    .spread-prices {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .spread-note {
+      font-size: .6rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: .4rem;
+      line-height: 1.35;
     }
-    .spread-price-item { text-align: center; }
-    .spread-price-item .sp-lbl { font-size: .58rem; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
-    .spread-price-item .sp-val { font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
     /* ── Responsive (notebook, tablet y móvil) ── */
     @media (max-width: 1280px) {
@@ -445,7 +778,7 @@
 
     @media (max-width: 900px) {
       .fx-secondary-grid { grid-template-columns: 1fr; }
-      .news-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+      .press-deck { grid-template-columns: 1fr 1fr; }
     }
 
     @media (max-width: 640px) {
@@ -523,17 +856,28 @@
       .fx-secondary-grid { grid-template-columns: 1fr; gap: .6rem; }
       .eur-card {
         display: flex;
+        flex-direction: row;
         align-items: center;
         justify-content: space-between;
+        text-align: left;
         gap: .75rem;
         padding: .65rem .75rem;
         width: 100%;
       }
-      .eur-card .fx-pair-label { margin-bottom: 0; }
+      .eur-card .fx-pair-label { margin-bottom: 0; justify-content: flex-start; }
       .eur-values { align-items: flex-end; }
       .eur-values .eur-venta-val { font-size: 1.15rem; }
 
-      .spread-card { padding: .75rem .85rem; }
+      .spread-card {
+        padding: .75rem .85rem;
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "title"
+          "main"
+          "prices"
+          "signal";
+        row-gap: .65rem;
+      }
       .spread-main {
         justify-content: space-around;
         width: 100%;
@@ -546,10 +890,11 @@
         gap: .5rem;
         width: 100%;
       }
-      .spread-price-item { text-align: left; }
+      .spread-price-item { text-align: center; min-width: 0; }
       .spread-signal { font-size: .64rem; line-height: 1.35; }
 
-      .news-grid { grid-template-columns: 1fr; gap: .75rem; }
+      .press { padding: .85rem .8rem 1rem; }
+      .press-deck { grid-template-columns: 1fr; }
       .news-card { padding: .75rem .85rem; }
       .news-title { font-size: .86rem; }
     }
@@ -654,11 +999,15 @@
     </div>
   </section>
 
-  <!-- NOTICIAS — visibles al hacer scroll -->
-  <section>
-    <div class="section-title">Noticias financieras con impacto cambiario <span style="font-weight:400;color:var(--muted);font-size:.78rem;">· últimas 24 h</span></div>
-    <div class="news-grid" id="newsGrid">
-      <div class="empty-state skeleton">Cargando noticias...</div>
+  <!-- NOTICIAS — estilo diario -->
+  <section class="press" id="pressSection" aria-label="Noticias financieras">
+    <div class="press-masthead">
+      <div class="press-kicker">Economía · Tipo de cambio · Argentina</div>
+      <div class="press-name">TC Chronicle</div>
+      <div class="press-sub">Edición digital · últimas 24 horas · impacto cambiario</div>
+    </div>
+    <div id="newsGrid">
+      <div class="empty-state skeleton">Cargando edición…</div>
     </div>
   </section>
 
@@ -932,7 +1281,31 @@
       .replace(/"/g, '&quot;');
   }
 
-  // ── Render Noticias ──
+  // ── Render Noticias (layout diario) ──
+  function newsCredit(img) {
+    if (!img) return '';
+    const bits = [img.attribution, img.license, img.source].filter(Boolean);
+    return bits.length
+      ? `<div class="press-credit">${escHtml(bits.join(' · '))}</div>`
+      : '';
+  }
+
+  function newsMeta(item, labels) {
+    return `
+      <div class="press-lead-meta">
+        <span class="press-source">${escHtml(item.source)}</span>
+        <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
+        <span>${relativeTime(item.pubDate)}</span>
+      </div>`;
+  }
+
+  function mediaBlock(img, cls) {
+    if (img?.url) {
+      return `<div class="${cls}"><img src="${escHtml(img.url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('.${cls.split(' ')[0]}')?.classList.add('placeholder'); this.remove();" /></div>`;
+    }
+    return `<div class="${cls} placeholder" aria-hidden="true"></div>`;
+  }
+
   function renderNews(items) {
     const grid = document.getElementById('newsGrid');
     if (!items || items.length === 0) {
@@ -940,16 +1313,70 @@
       return;
     }
     const labels = { muy_alto:'Impacto muy alto', alto:'Impacto alto', medio:'Impacto medio', bajo:'Impacto bajo' };
-    grid.innerHTML = items.map(item => `
-      <a class="news-card" href="${escHtml(item.link)}" target="_blank" rel="noopener noreferrer">
-        <div class="news-meta">
-          <span class="news-source">${escHtml(item.source)}</span>
-          <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
-          <span class="news-date">${relativeTime(item.pubDate)}</span>
+    const [lead, ...rest] = items;
+    const side = rest.slice(0, 6);
+    const deck = rest.slice(6, 18);
+    const more = rest.slice(18, 36);
+
+    const leadHtml = `
+      <a class="press-lead" href="${escHtml(lead.link)}" target="_blank" rel="noopener noreferrer">
+        ${mediaBlock(lead.image, 'press-lead-media')}
+        ${newsMeta(lead, labels)}
+        <div class="press-lead-title">${escHtml(lead.title)}</div>
+        ${lead.summary ? `<div class="press-lead-summary">${escHtml(lead.summary)}</div>` : ''}
+        ${newsCredit(lead.image)}
+      </a>`;
+
+    const sideHtml = `
+      <div class="press-side">
+        ${side.map(item => `
+          <a class="press-side-item" href="${escHtml(item.link)}" target="_blank" rel="noopener noreferrer">
+            ${mediaBlock(item.image, 'press-side-thumb')}
+            <div>
+              <div class="press-side-meta">
+                <span class="press-source">${escHtml(item.source)}</span>
+                <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
+              </div>
+              <div class="press-side-title">${escHtml(item.title)}</div>
+            </div>
+          </a>`).join('')}
+      </div>`;
+
+    const deckHtml = deck.length ? `
+      <div class="press-deck">
+        ${deck.map(item => `
+          <a class="press-card" href="${escHtml(item.link)}" target="_blank" rel="noopener noreferrer">
+            ${mediaBlock(item.image, 'press-card-media')}
+            <div class="press-card-meta">
+              <span class="press-source">${escHtml(item.source)}</span>
+              <span class="impact-tag impact-${item.impact}">${labels[item.impact] || item.impact}</span>
+              <span>${relativeTime(item.pubDate)}</span>
+            </div>
+            <div class="press-card-title">${escHtml(item.title)}</div>
+            ${item.summary ? `<div class="press-card-summary">${escHtml(item.summary)}</div>` : ''}
+            ${newsCredit(item.image)}
+          </a>`).join('')}
+      </div>` : '';
+
+    const moreHtml = more.length ? `
+      <div class="press-more" aria-label="Más titulares">
+        <div class="press-more-heading">Más titulares</div>
+        <div class="press-more-grid">
+          ${more.map(item => `
+            <a class="press-more-item" href="${escHtml(item.link)}" target="_blank" rel="noopener noreferrer">
+              <span class="press-more-source">${escHtml(item.source)}</span>
+              <span class="press-more-title">${escHtml(item.title)}</span>
+            </a>`).join('')}
         </div>
-        <div class="news-title">${escHtml(item.title)}</div>
-        ${item.summary ? `<div class="news-summary">${escHtml(item.summary)}</div>` : ''}
-      </a>`).join('');
+      </div>` : '';
+
+    grid.innerHTML = `
+      <div class="press-layout">
+        ${leadHtml}
+        ${sideHtml}
+        ${deckHtml}
+        ${moreHtml}
+      </div>`;
   }
 
   // ── Gráfico intradiario ──
@@ -1354,35 +1781,33 @@
     const pct   = spreadData.pct;
 
     // Semáforo: >2% muy interesante, 0.5%-2% moderado, <0.5% sin diferencia significativa
-    let signalClass, signalIcon, signalText;
+    let signalClass, signalText;
     if (pct >= 2) {
       signalClass = 'hot';
-      signalIcon  = '🟢';
       signalText  = 'Diferencia alta — operación puede ser conveniente';
     } else if (pct >= 0.5) {
       signalClass = 'warm';
-      signalIcon  = '🟡';
       signalText  = 'Diferencia moderada — evaluar costos de transacción';
     } else if (pct >= 0) {
       signalClass = 'cold';
-      signalIcon  = '⚪';
       signalText  = 'Diferencia mínima — no justifica la operación';
     } else {
       signalClass = 'cold';
-      signalIcon  = '🔴';
       signalText  = 'MEP compra por debajo del mayorista';
     }
 
-    const fmt = v => v != null ? '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+    const fmtMoney = v => v != null ? '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
     card.innerHTML = `
-      <div>
+      <div class="spread-head">
         <div class="spread-title">Spread MEP compra — Mayorista venta</div>
+      </div>
+      <div class="spread-main-wrap">
         <div class="spread-main">
           <div class="spread-val-block">
             <div class="label">Monto</div>
             <div class="val ${pct >= 0.5 ? 'positive' : pct < 0 ? 'negative' : 'neutral'}">
-              ${monto >= 0 ? '+' : ''}${fmt(monto)}
+              ${monto >= 0 ? '+' : ''}${fmtMoney(monto)}
             </div>
           </div>
           <div class="spread-val-block">
@@ -1393,23 +1818,19 @@
           </div>
         </div>
       </div>
-
       <div class="spread-prices">
         <div class="spread-price-item">
           <div class="sp-lbl">MEP compra</div>
-          <div class="sp-val">${fmt(mep.compra)}</div>
+          <div class="sp-val">${fmtMoney(mep.compra)}</div>
         </div>
         <div class="spread-price-item">
           <div class="sp-lbl">Mayorista venta</div>
-          <div class="sp-val">${fmt(usd.venta)}</div>
+          <div class="sp-val">${fmtMoney(usd.venta)}</div>
         </div>
       </div>
-
-      <div>
-        <div class="spread-signal ${signalClass}">${signalIcon} ${signalText}</div>
-        <div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;">
-          Comparación: comprás USD vía MEP (compra) vs cotización mayorista (venta)
-        </div>
+      <div class="spread-foot">
+        <div class="spread-signal ${signalClass}">${signalText}</div>
+        <div class="spread-note">Comparación: comprás USD vía MEP (compra) vs cotización mayorista (venta)</div>
       </div>
     `;
   }

@@ -14,9 +14,16 @@ const parser = new Parser({
 
 function stripHtml(html) {
   return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/\(function\s*\([\s\S]*$/g, ' ')
+    .replace(/GoogleAnalyticsObject[\s\S]*$/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .slice(0, 500);
 }
 
 function isArgentinaArticle(link) {

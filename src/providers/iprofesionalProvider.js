@@ -1,4 +1,5 @@
 const Parser = require('rss-parser');
+const { extractRssImage, normalizeRssImageUrl } = require('../utils/rssImage');
 
 const IPRO_FEEDS = [
   { url: 'https://www.iprofesional.com/rss/economia', source: 'iProfesional Economía' },
@@ -9,13 +10,23 @@ const IPRO_FEEDS = [
 const parser = new Parser({
   timeout: 12000,
   headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DashboardTC/1.0)' },
+  customFields: {
+    item: [['content:encoded', 'contentEncoded']],
+  },
 });
 
 function stripHtml(html) {
   return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/\(function\s*\([\s\S]*$/g, ' ')
+    .replace(/GoogleAnalyticsObject[\s\S]*$/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    .slice(0, 500);
 }
 
 function normalizeLink(link) {
@@ -41,6 +52,7 @@ async function fetchFeed(feed) {
         link: normalizeLink(item.link),
         pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
         source: feed.source,
+        rssImage: normalizeRssImageUrl(extractRssImage(item)),
       }));
   } catch (err) {
     console.warn('[iPro]', feed.url, err.message);
