@@ -4,7 +4,7 @@ El dólar mayorista necesita un proceso Node con **WebSocket a A3** (no sirve Ve
 
 ## Opción gratuita recomendada: Render Free + “keep-alive”
 
-**Costo: USD 0.** Render duerme el servicio tras ~15 min sin visitas; un ping cada 14 minutos lo mantiene despierto casi todo el día.
+**Costo: USD 0.** Render Free duerme el servicio tras ~15 min sin visitas. Hay que hacerle ping cada pocos minutos (GitHub Actions + idealmente UptimeRobot).
 
 ### Pasos
 
@@ -26,23 +26,29 @@ El dólar mayorista necesita un proceso Node con **WebSocket a A3** (no sirve Ve
    - Nombre: `APP_URL`
    - Valor: tu URL **sin** barra final (ej. `https://dashboard-tc-noticias.onrender.com`)
 
-   El workflow `.github/workflows/keep-alive.yml` hará ping a `/api/health` cada 14 minutos.
+   El workflow `.github/workflows/keep-alive.yml` hace ping a `/api/health` + `/api/tc-history/heartbeat` cada 10 minutos (con reintentos por cold start).
 
-7. **Proyección diaria 9:00 ART:** configurá también el secret `PROJECTION_JOB_SECRET` en GitHub con el mismo valor que cargaste en Render. El workflow `.github/workflows/daily-projection.yml` llama a `/api/projection/daily-run` todos los días hábiles a las 9:00 ART.
+7. **Anti–“Starting…” de Render (recomendado):** el cron de GitHub a veces se atrasa y Render Free se duerme a los ~15 min. Creá un monitor gratis en [UptimeRobot](https://uptimerobot.com):
+   - Tipo: **HTTP(s)**
+   - URL: `https://TU-URL.onrender.com/api/health`
+   - Intervalo: **5 minutos**
+   - Eso suele eliminar la pantalla azul de Render al entrar.
 
-8. Activá Actions: **Actions** → workflow **Keep alive** → **Run workflow** (una vez para probar). Luego probá **Daily projection** manualmente cuando quieras validar el guardado.
+8. **Proyección diaria 9:00 ART:** configurá también el secret `PROJECTION_JOB_SECRET` en GitHub con el mismo valor que cargaste en Render. El workflow `.github/workflows/daily-projection.yml` llama a `/api/projection/daily-run` todos los días hábiles a las 9:00 ART.
+
+9. Activá Actions: **Actions** → workflow **Keep alive** → **Run workflow** (una vez para probar). Luego probá **Daily projection** manualmente cuando quieras validar el guardado.
 
 ### Qué esperar (plan free)
 
 | Aspecto | Comportamiento |
 |---------|----------------|
 | Costo | Gratis |
-| Siempre encendido | Casi sí, si el keep-alive corre |
-| Primer acceso tras rato sin uso | Puede tardar **30–60 s** (arranque en frío) |
+| Siempre encendido | Casi sí, con **UptimeRobot cada 5 min** + keep-alive de GitHub |
+| Primer acceso sin keep-alive | Pantalla “Starting…” de Render + **30–60 s** |
 | WebSocket A3 | Se reconecta al despertar el servidor |
-| Historial proyección | En memoria (se pierde si Render reinicia el contenedor) |
+| Historial proyección | En Supabase si está configurado |
 
-**Alternativa al keep-alive de GitHub:** [UptimeRobot](https://uptimerobot.com) (gratis): monitor HTTP cada 5 min a `https://TU-URL/api/health`.
+**Sin UptimeRobot**, solo GitHub Actions no alcanza: su cron se atrasa y Render se duerme igual.
 
 ---
 

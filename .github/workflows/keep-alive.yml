@@ -1,23 +1,48 @@
 # Evita que Render (plan free) duerma el servicio por inactividad.
 # Configurá el secret APP_URL en GitHub: Settings → Secrets → Actions → APP_URL
 # Ejemplo: https://dashboard-tc-noticias.onrender.com
+#
+# Nota: el cron de GitHub Actions a veces se atrasa. Para evitar casi siempre
+# la pantalla "Starting…" de Render, sumá UptimeRobot cada 5 min a /api/health
+# (ver DEPLOY.md).
 name: Keep alive
 
 on:
   schedule:
-    - cron: '*/14 * * * *'
+    # Cada 10 min (más margen ante atrasos del scheduler de GitHub)
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping heartbeat (mantiene despierto + registra TC en rueda)
+      - name: Wake + heartbeat (reintentos por cold start)
         run: |
           if [ -z "${{ secrets.APP_URL }}" ]; then
             echo "Configurá el secret APP_URL con la URL pública del deploy (sin barra final)"
             exit 1
           fi
-          curl -fsS "${{ secrets.APP_URL }}/api/tc-history/heartbeat" | head -c 500
-          echo ""
+
+          BASE="${{ secrets.APP_URL }}"
+          BASE="${BASE%/}"
+
+          ping_url () {
+            local url="$1"
+            local i
+            for i in 1 2 3 4 5; do
+              if curl -fsS --max-time 60 "$url" | head -c 500; then
+                echo ""
+                return 0
+              fi
+              echo "Reintento $i falló para $url (cold start típico)…"
+              sleep 15
+            done
+            return 1
+          }
+
+          # 1) Health: despierta el servicio
+          ping_url "$BASE/api/health"
+          # 2) Heartbeat: registra TC en rueda si hay precio A3
+          ping_url "$BASE/api/tc-history/heartbeat"
           echo "OK $(date -u)"
