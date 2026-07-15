@@ -235,7 +235,7 @@
     }
     .fx-global-grid {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: .35rem;
       width: 100%;
       min-width: 0;
@@ -1145,11 +1145,12 @@
     }
     const sign = p.changePct > 0 ? '+' : '';
     const arrow = p.vsUsd === 'aprecia' ? '▲' : p.vsUsd === 'deprecia' ? '▼' : '●';
-    const label = p.vsUsd === 'aprecia'
-      ? `${escHtml(p.foreignName)} aprecia vs USD`
-      : p.vsUsd === 'deprecia'
-        ? `${escHtml(p.foreignName)} deprecia vs USD`
-        : 'Sin cambio vs USD';
+    const label = p.chgLabel
+      || (p.vsUsd === 'aprecia'
+        ? `${escHtml(p.foreignName)} aprecia vs USD`
+        : p.vsUsd === 'deprecia'
+          ? `${escHtml(p.foreignName)} deprecia vs USD`
+          : 'Sin cambio vs USD');
     return `<div class="fx-global-chg ${p.vsUsd}"><span aria-hidden="true">${arrow}</span><span>${sign}${p.changePct}% · ${label}</span></div>`;
   }
 
@@ -1179,12 +1180,58 @@
     };
   }
 
+  /** BRL/ARS = (USD/ARS) / (USD/BRL) → pesos por 1 real. */
+  function buildBrlArsFxPair(usd, forexPairs) {
+    const usdBrl = (forexPairs || []).find(p => p.pair === 'USD/BRL');
+    if (!usd?.venta || !(usdBrl?.rate > 0)) return null;
+
+    const rate = usd.venta / usdBrl.rate;
+    let ratePrev = null;
+    let changePct = null;
+    let vsUsd = null;
+    let chgLabel = null;
+
+    if (usd.cierreValor != null && usdBrl.ratePrev > 0) {
+      ratePrev = usd.cierreValor / usdBrl.ratePrev;
+      changePct = Number((((rate - ratePrev) / ratePrev) * 100).toFixed(2));
+      if (Math.abs(changePct) < 0.005) {
+        vsUsd = 'estable';
+        chgLabel = 'Sin cambio';
+      } else if (changePct > 0) {
+        vsUsd = 'aprecia';
+        chgLabel = 'Real vs peso sube';
+      } else {
+        vsUsd = 'deprecia';
+        chgLabel = 'Real vs peso baja';
+      }
+    }
+
+    return {
+      pair: 'BRL/ARS',
+      flags: ['br', 'ar'],
+      foreignName: 'Real',
+      rate: Number(rate.toFixed(2)),
+      ratePrev: ratePrev != null ? Number(ratePrev.toFixed(2)) : null,
+      cierreFecha: fmtCierreDate(usd.cierreFecha) || usdBrl.cierreFecha || 'cierre ant.',
+      changePct,
+      vsUsd,
+      chgLabel,
+      decimals: 2,
+      subtitle: 'Pesos por 1 real',
+    };
+  }
+
   function renderFxGlobal(data, usd) {
     const card = document.getElementById('fxGlobalCard');
     if (!card) return;
     card.classList.remove('skeleton');
 
-    const pairs = [buildUsdArsFxPair(usd), ...(data?.pairs || [])].filter(Boolean);
+    const intl = data?.pairs || [];
+    const pairs = [
+      buildUsdArsFxPair(usd),
+      ...intl,
+      buildBrlArsFxPair(usd, intl),
+    ].filter(Boolean);
 
     if (!pairs.length) {
       card.innerHTML = '<div class="fx-global-empty">No se pudieron cargar los cruces internacionales.</div>';

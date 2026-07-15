@@ -4,16 +4,20 @@ const FRANKFURTER_BASE = 'https://api.frankfurter.app';
 const YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const CACHE_TTL_MS = 30 * 1000;
 
-const CURRENCIES = ['EUR', 'BRL', 'GBP', 'JPY', 'CHF', 'CNY', 'MXN'];
+/** Monedas pedidas a Frankfurter (cotizadas vs USD). */
+const CURRENCIES = ['EUR', 'BRL', 'CHF'];
 
+/**
+ * kind:
+ *  - usdPerUnit: USD por 1 unidad extranjera (EUR/USD, GBP/USD…)
+ *  - unitsPerUsd: unidades extranjeras por 1 USD (USD/BRL, USD/JPY…)
+ *  - cross: cruce sin USD en el par (EUR/BRL); Yahoo directo o derivado en Frankfurter
+ */
 const PAIR_DEFS = [
   { pair: 'EUR/USD', flags: ['eu', 'us'], left: 'Euro', right: 'USD', currency: 'EUR', kind: 'usdPerUnit', yahoo: 'EURUSD=X' },
   { pair: 'USD/BRL', flags: ['us', 'br'], left: 'USD', right: 'Real', currency: 'BRL', kind: 'unitsPerUsd', yahoo: 'USDBRL=X' },
-  { pair: 'GBP/USD', flags: ['gb', 'us'], left: 'Libra', right: 'USD', currency: 'GBP', kind: 'usdPerUnit', yahoo: 'GBPUSD=X' },
-  { pair: 'USD/JPY', flags: ['us', 'jp'], left: 'USD', right: 'Yen', currency: 'JPY', kind: 'unitsPerUsd', yahoo: 'USDJPY=X' },
-  { pair: 'USD/CNY', flags: ['us', 'cn'], left: 'USD', right: 'Yuan', currency: 'CNY', kind: 'unitsPerUsd', yahoo: 'USDCNY=X' },
+  { pair: 'EUR/BRL', flags: ['eu', 'br'], left: 'Euro', right: 'Real', kind: 'cross', yahoo: 'EURBRL=X', frankfurter: 'eurBrl' },
   { pair: 'USD/CHF', flags: ['us', 'ch'], left: 'USD', right: 'Franco', currency: 'CHF', kind: 'unitsPerUsd', yahoo: 'USDCHF=X' },
-  { pair: 'USD/MXN', flags: ['us', 'mx'], left: 'USD', right: 'Peso MX', currency: 'MXN', kind: 'unitsPerUsd', yahoo: 'USDMXN=X' },
 ];
 
 let cache = { data: null, fetchedAt: 0 };
@@ -25,7 +29,9 @@ function roundRate(value, decimals) {
 }
 
 function pairDecimals(def) {
-  return def.kind === 'unitsPerUsd' && def.currency === 'JPY' ? 2 : 4;
+  if (def.pair === 'EUR/BRL') return 4;
+  if (def.kind === 'unitsPerUsd' && def.currency === 'JPY') return 2;
+  return 4;
 }
 
 function foreignVsUsdMove(def, rateNow, ratePrev) {
@@ -39,8 +45,12 @@ function foreignVsUsdMove(def, rateNow, ratePrev) {
 
   let vsUsd = 'estable';
   if (!flat) {
-    const foreignAppreciated = def.kind === 'usdPerUnit' ? changeAbs > 0 : changeAbs < 0;
-    vsUsd = foreignAppreciated ? 'aprecia' : 'deprecia';
+    if (def.kind === 'cross') {
+      vsUsd = changeAbs > 0 ? 'aprecia' : 'deprecia';
+    } else {
+      const foreignAppreciated = def.kind === 'usdPerUnit' ? changeAbs > 0 : changeAbs < 0;
+      vsUsd = foreignAppreciated ? 'aprecia' : 'deprecia';
+    }
   }
 
   return {
@@ -57,7 +67,21 @@ function buildPair(def, rate, ratePrev, meta = {}) {
   const rateRounded = roundRate(rate, decimals);
   const ratePrevRounded = ratePrev != null ? roundRate(ratePrev, decimals) : null;
   const move = foreignVsUsdMove(def, rateRounded, ratePrevRounded);
-  const foreignName = def.kind === 'usdPerUnit' ? def.left : def.right;
+
+  let foreignName;
+  let subtitle;
+  let chgLabel = null;
+
+  if (def.kind === 'cross') {
+    foreignName = def.pair;
+    subtitle = `${def.right} por 1 ${def.left}`;
+    if (move.vsUsd === 'aprecia') chgLabel = `${def.pair} sube`;
+    else if (move.vsUsd === 'deprecia') chgLabel = `${def.pair} baja`;
+    else if (move.vsUsd === 'estable') chgLabel = 'Sin cambio';
+  } else {
+    foreignName = def.kind === 'usdPerUnit' ? def.left : def.right;
+    subtitle = def.kind === 'usdPerUnit' ? 'USD por 1 unidad' : 'Unidades por 1 USD';
+  }
 
   return {
     pair: def.pair,
@@ -71,13 +95,24 @@ function buildPair(def, rate, ratePrev, meta = {}) {
     changePct: move.changePct,
     changeAbs: move.changeAbs,
     vsUsd: move.vsUsd,
+    chgLabel,
     decimals,
-    subtitle: def.kind === 'usdPerUnit' ? 'USD por 1 unidad' : 'Unidades por 1 USD',
+    subtitle,
     asOf: meta.asOf || null,
   };
 }
 
 function rateFromUsdQuote(def, usdRates) {
+  if (def.frankfurter === 'eurBrl') {
+    const eurPerUsd = usdRates?.EUR;
+    const brlPerUsd = usdRates?.BRL;
+    if (!(eurPerUsd > 0) || !(brlPerUsd > 0)) return null;
+    // EUR/BRL = (USD/BRL) / (USD/EUR) = BRL_per_USD * EUR_per_USD... 
+    // Frankfurter from USD: rates.EUR = EUR per 1 USD, rates.BRL = BRL per 1 USD
+    // EUR/USD = 1/rates.EUR; USD/BRL = rates.BRL; EUR/BRL = EUR/USD * USD/BRL
+    return (1 / eurPerUsd) * brlPerUsd;
+  }
+
   const raw = usdRates?.[def.currency];
   if (raw == null || raw <= 0) return null;
   return def.kind === 'usdPerUnit' ? 1 / raw : raw;
@@ -194,7 +229,7 @@ async function fetchFromFrankfurter() {
 async function fetchForexVsUsd() {
   try {
     const live = await fetchFromYahoo();
-    if (live?.pairs?.length >= PAIR_DEFS.length - 1) {
+    if (live?.pairs?.length >= Math.max(1, PAIR_DEFS.length - 1)) {
       return live;
     }
   } catch (err) {
