@@ -5,7 +5,7 @@ const YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const CACHE_TTL_MS = 30 * 1000;
 
 /** Monedas pedidas a Frankfurter (cotizadas vs USD). */
-const CURRENCIES = ['EUR', 'BRL', 'CHF'];
+const CURRENCIES = ['EUR', 'BRL'];
 
 /**
  * kind:
@@ -17,7 +17,6 @@ const PAIR_DEFS = [
   { pair: 'EUR/USD', flags: ['eu', 'us'], left: 'Euro', right: 'USD', currency: 'EUR', kind: 'usdPerUnit', yahoo: 'EURUSD=X' },
   { pair: 'USD/BRL', flags: ['us', 'br'], left: 'USD', right: 'Real', currency: 'BRL', kind: 'unitsPerUsd', yahoo: 'USDBRL=X' },
   { pair: 'EUR/BRL', flags: ['eu', 'br'], left: 'Euro', right: 'Real', kind: 'cross', yahoo: 'EURBRL=X', frankfurter: 'eurBrl' },
-  { pair: 'USD/CHF', flags: ['us', 'ch'], left: 'USD', right: 'Franco', currency: 'CHF', kind: 'unitsPerUsd', yahoo: 'USDCHF=X' },
 ];
 
 let cache = { data: null, fetchedAt: 0 };

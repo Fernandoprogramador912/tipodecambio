@@ -2,6 +2,7 @@ const axios = require('axios');
 const { record } = require('./historyService');
 const { getForexVsUsd } = require('./forexService');
 const { getSpotRef, ENABLED: FUTURES_ENABLED } = require('../providers/futuresProvider');
+const cierreStore = require('./mayoristaCierreStore');
 require('../config/mayoristaSource');
 
 const DOLAR_API_BASE = 'https://dolarapi.com/v1';
@@ -41,18 +42,28 @@ let cache = {
   fetchedAt: 0,
 };
 
-/** Último cierre de rueda: A3 tick (precio + fecha) o fallback Ámbito/DolarApi. */
+/** Último cierre de rueda anterior (día < hoy ART): A3 histórico o fallback Ámbito/DolarApi. */
 async function fetchUltimoCierre(spot) {
   if (spot?.closePrice != null && spot?.closeDate) {
+    cierreStore.recordClose(spot.closeDate, spot.closePrice);
+  }
+
+  const stored = cierreStore.getCierreAnterior();
+  if (stored.cierreValor != null) {
     return {
-      cierreValor: spot.closePrice,
-      cierreFecha: spot.closeDate,
+      cierreValor: stored.cierreValor,
+      cierreFecha: stored.cierreFecha,
       cierreFuente: 'A3',
     };
   }
 
   const now = Date.now();
   if (cierreCache.valor != null && now - cierreCache.fetchedAt < CIERRE_CACHE_TTL_MS) {
+    const cacheDate = cierreCache.fecha;
+    const today = cierreStore.todayART();
+    if (cacheDate && cacheDate >= today) {
+      return { cierreValor: null, cierreFecha: null, cierreFuente: cierreCache.fuente };
+    }
     return {
       cierreValor: cierreCache.valor,
       cierreFecha: cierreCache.fecha,
@@ -69,15 +80,21 @@ async function fetchUltimoCierre(spot) {
     if (ambitoRes.status === 'fulfilled') {
       const ant = parseAmbitoNum(ambitoRes.value.data?.valor_cierre_ant);
       if (ant != null) {
-        cierreCache = { valor: ant, fecha: null, fuente: 'Ámbito', fetchedAt: now };
-        return { cierreValor: ant, cierreFecha: null, cierreFuente: 'Ámbito' };
+        const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        art.setUTCDate(art.getUTCDate() - 1);
+        const ayer = art.toISOString().slice(0, 10);
+        cierreStore.recordClose(ayer, ant);
+        cierreCache = { valor: ant, fecha: ayer, fuente: 'Ámbito', fetchedAt: now };
+        return { cierreValor: ant, cierreFecha: ayer, cierreFuente: 'Ámbito' };
       }
     }
 
     if (dolarRes.status === 'fulfilled') {
       const d = dolarRes.value.data;
       const fecha = d.fechaActualizacion ? d.fechaActualizacion.slice(0, 10) : null;
-      if (d.venta != null) {
+      const today = cierreStore.todayART();
+      if (d.venta != null && fecha && fecha < today) {
+        cierreStore.recordClose(fecha, d.venta);
         cierreCache = { valor: d.venta, fecha, fuente: 'DolarApi', fetchedAt: now };
         return { cierreValor: d.venta, cierreFecha: fecha, cierreFuente: 'DolarApi' };
       }
@@ -109,8 +126,8 @@ async function fetchMayoristaFromA3() {
       : fromLastTick
         ? (spot.fuente || 'A3')
         : (cierre.cierreFuente || spot?.fuente || 'Cierre'),
-    cierreValor: cierre.cierreValor ?? venta,
-    cierreFecha: cierre.cierreFecha,
+    cierreValor: cierre.cierreValor ?? null,
+    cierreFecha: cierre.cierreFecha ?? null,
     cierreFuente: cierre.cierreFuente,
     _fromA3: fromLive || fromLastTick,
     _fromCierre: !fromLive && !fromLastTick,
