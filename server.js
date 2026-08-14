@@ -19,6 +19,8 @@ const { getFutures, ENABLED: FUTURES_ENABLED } = require('./src/providers/future
 const a3MatrizWs = require('./src/providers/a3MatrizWsProvider');
 const wsProvider = require('./src/providers/wsProvider');
 const tcIntradayHistory = require('./src/services/tcIntradayHistoryService');
+const { getCierreAnterior } = require('./src/services/mayoristaCierreStore');
+const newsArchive = require('./src/services/newsArchiveService');
 const { startTcIntradayRecorder, pulseFromA3 } = require('./src/services/tcIntradayRecorderService');
 
 const app  = express();
@@ -209,6 +211,17 @@ app.get('/api/tc-history', async (req, res) => {
   }
 });
 
+/** Insights: estadísticas históricas por franja horaria (para mejor horario de cierre). */
+app.get('/api/tc-history/insights', async (req, res) => {
+  try {
+    const days = req.query.days ? Number(req.query.days) : 20;
+    const result = await tcIntradayHistory.getInsights({ days });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/api/tc-history/:date', async (req, res) => {
   try {
     const date = req.params.date;
@@ -217,6 +230,20 @@ app.get('/api/tc-history/:date', async (req, res) => {
     }
     const day = await tcIntradayHistory.getDay(date);
     res.json({ ok: true, ...day });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/** Resumen estadístico de un día (min/max/rango/horarios + cierre anterior). */
+app.get('/api/tc-history/:date/summary', async (req, res) => {
+  try {
+    const date = req.params.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ ok: false, error: 'Fecha inválida (YYYY-MM-DD)' });
+    }
+    const summary = await tcIntradayHistory.getDaySummary(date);
+    res.json({ ok: true, ...summary });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -268,6 +295,41 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
+// --- API: archivo de noticias por día ---
+app.get('/api/news-archive', async (req, res) => {
+  try {
+    const days = await newsArchive.listArchivedDays();
+    res.json({ ok: true, days });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/news-archive/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ ok: false, error: 'Fecha inválida (YYYY-MM-DD)' });
+    }
+    const day = await newsArchive.getNewsForDay(date);
+    if (!day) return res.json({ ok: true, date, items: [], found: false });
+    res.json({ ok: true, found: true, ...day });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/** Archiva noticias del día (llamada manual o por cron externo). */
+app.post('/api/news-archive/today', async (req, res) => {
+  try {
+    const news = await getNews();
+    const result = await newsArchive.archiveToday(news.items || []);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // --- API: futuros ---
 app.get('/api/futures', async (req, res) => {
   try {
@@ -288,6 +350,30 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+/**
+ * Cron liviano: cada minuto verifica si son las 15:30 ART (±30s) para archivar noticias.
+ * No usa dependencias externas; un proceso persistente (Render) lo lleva bien.
+ */
+function startNewsArchiveCron() {
+  let lastArchiveDate = null;
+  setInterval(async () => {
+    const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const h = art.getUTCHours();
+    const m = art.getUTCMinutes();
+    const today = art.toISOString().slice(0, 10);
+    if (h === 15 && m >= 30 && m < 35 && lastArchiveDate !== today) {
+      lastArchiveDate = today;
+      try {
+        const news = await getNews();
+        const result = await newsArchive.archiveToday(news.items || []);
+        console.log(`[news-archive] ${result.archived ? `${result.count} noticias archivadas (${result.storage})` : result.reason}`);
+      } catch (err) {
+        console.warn('[news-archive] Error en cron:', err.message);
+      }
+    }
+  }, 60_000);
+}
+
 // Local: levantar servidor. Vercel: exportar el app como handler.
 if (require.main === module) {
   const host = process.env.HOST || '0.0.0.0';
@@ -297,10 +383,10 @@ if (require.main === module) {
     console.log(`  USD (UI mayorista): ${FUTURES_ENABLED ? 'A3/Primary futuro DLR' : 'fallback Ámbito'}`);
     if (FUTURES_ENABLED) {
       startTcIntradayRecorder();
-      console.log('  Gráfico intradiario: registro automático en servidor (10:00–15:00 ART)\n');
-    } else {
-      console.log('');
+      console.log('  Gráfico intradiario: registro automático en servidor (10:00–15:00 ART)');
     }
+    startNewsArchiveCron();
+    console.log('  Archivo de noticias: cron activo (15:30 ART)\n');
   });
 }
 

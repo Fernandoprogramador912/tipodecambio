@@ -42,6 +42,23 @@ let cache = {
   fetchedAt: 0,
 };
 
+function isChartSessionART() {
+  const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const m = art.getUTCHours() * 60 + art.getUTCMinutes();
+  return m >= 10 * 60 && m <= 15 * 60;
+}
+
+let lastExchangeRecordAt = 0;
+const EXCHANGE_RECORD_THROTTLE_MS = 5 * 60 * 1000; // 5 min
+
+function maybeRecord(venta, ts) {
+  if (!isChartSessionART()) return;
+  const now = Date.now();
+  if (now - lastExchangeRecordAt < EXCHANGE_RECORD_THROTTLE_MS) return;
+  lastExchangeRecordAt = now;
+  record(venta, venta, ts || new Date().toISOString());
+}
+
 /** Último cierre de rueda anterior (día < hoy ART): A3 histórico o fallback Ámbito/DolarApi. */
 async function fetchUltimoCierre(spot) {
   if (spot?.closePrice != null && spot?.closeDate) {
@@ -202,9 +219,7 @@ async function getRates() {
     const { usd: _u, ...rest } = cache.data;
     const eur = buildEurVenta(usd, rest.forexGlobal);
     const merged = { ...rest, usd, eur, cached: true };
-    if (usd?.venta) {
-      record(usd.venta, usd.venta, usd.fechaActualizacion || new Date().toISOString());
-    }
+    if (usd?.venta) maybeRecord(usd.venta, usd.fechaActualizacion);
     return merged;
   }
 
@@ -240,9 +255,7 @@ async function getRates() {
 
     cache = { data: rates, fetchedAt: now };
 
-    if (usd?.venta) {
-      record(usd.venta, usd.venta, usd.fechaActualizacion || new Date().toISOString());
-    }
+    if (usd?.venta) maybeRecord(usd.venta, usd.fechaActualizacion);
 
     return { ...rates, cached: false };
   } catch (err) {

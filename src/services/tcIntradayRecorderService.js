@@ -5,7 +5,7 @@
 
 const { record } = require('./historyService');
 
-const RECORD_INTERVAL_MS = Number(process.env.TC_RECORD_INTERVAL_MS) || 30_000;
+const RECORD_INTERVAL_MS = Number(process.env.TC_RECORD_INTERVAL_MS) || 300_000; // 5 min default
 const ENABLED = process.env.ENABLE_FUTURES === 'true';
 
 let lastRecordedAt = 0;

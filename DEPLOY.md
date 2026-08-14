@@ -91,13 +91,18 @@ Si más adelante querés cero cold starts, se puede cambiar Render a plan Starte
 | `SUPABASE_SERVICE_ROLE_KEY` | Sí, secreto de servidor |
 | `SUPABASE_DAILY_PROJECTIONS_TABLE` | `daily_projections` |
 | `SUPABASE_TC_INTRADAY_TABLE` | `tc_intraday_days` (gráfico por día) |
-| `TC_HISTORY_START_DATE` | Opcional; default = hoy (solo acumula desde esa fecha) |
+| `SUPABASE_NEWS_ARCHIVE_TABLE` | `tc_day_news` (noticias de alto impacto por día) |
+| `TC_HISTORY_START_DATE` | Fijar al día de activación (ej. `2026-08-11`); sin esto usa "hoy" como default y puede perder días pasados |
 | `PROJECTION_JOB_SECRET` | Sí, mismo valor en Render y GitHub |
 
 ### Historial del gráfico intradiario (Supabase)
 
-Ejecutá una vez en el SQL Editor el script `scripts/tc-intraday-supabase.sql`.  
-Cada rueda (10:00–15:00 ART) guarda puntos en `tc_intraday_days`. En el dashboard podés elegir uno o más días (máx. 4) para comparar curvas. **No hay datos de días anteriores al deploy** salvo que los tengas en `localStorage` del navegador (se sincronizan al abrir la página).
+Ejecutá una vez en el SQL Editor los scripts `scripts/tc-intraday-supabase.sql` y `scripts/tc-news-archive-supabase.sql`.  
+Cada rueda (10:00–15:00 ART) guarda puntos en `tc_intraday_days` cada **5 minutos**. En el dashboard podés elegir uno o más días (máx. 4) para comparar curvas, ver resumen estadístico (apertura/cierre/mín/máx/horarios) y consultar el **patrón histórico por franja horaria** para decidir en qué momento cerrar cambio.
+
+**Variable crítica:** configurar `TC_HISTORY_START_DATE=YYYY-MM-DD` en Render con la fecha de hoy para que el historial acumule desde ese día en adelante.
+
+Las noticias de alto impacto del día se archivan automáticamente a las 15:30 ART en `tc_day_news`.
 
 ---
 

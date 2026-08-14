@@ -282,11 +282,153 @@ async function syncDays(daysPayload = {}) {
   return { synced, startDate: getHistoryStartDate() };
 }
 
+// --- Analytics ---
+
+function toARTMin(isoStr) {
+  const artMs = new Date(isoStr).getTime() - 3 * 60 * 60 * 1000;
+  const art = new Date(artMs);
+  return art.getUTCHours() * 60 + art.getUTCMinutes();
+}
+
+function slotLabel(artMin) {
+  return String(Math.floor(artMin / 60)).padStart(2, '0') + ':' +
+         String(artMin % 60).padStart(2, '0');
+}
+
+/** Downsamples points to slotMin-minute grid; last value per slot wins. */
+function downsamplePoints(points, slotMin = 5) {
+  if (!Array.isArray(points) || !points.length) return [];
+  const slotMap = new Map();
+  for (const p of [...points].sort((a, b) => String(a.ts).localeCompare(String(b.ts)))) {
+    const norm = normalizePoint(p);
+    if (!norm) continue;
+    const artMin = toARTMin(norm.ts);
+    const slotIdx = Math.floor((artMin - 10 * 60) / slotMin);
+    if (slotIdx < 0 || slotIdx > (5 * 60) / slotMin) continue;
+    slotMap.set(slotIdx, norm);
+  }
+  return [...slotMap.values()].sort((a, b) => a.ts.localeCompare(b.ts));
+}
+
+/** Compute summary stats from an array of points (solo 10:00–15:00 ART). */
+function computeDaySummary(points) {
+  if (!Array.isArray(points) || !points.length) return null;
+  const valid = points.filter(p => {
+    if (!Number.isFinite(p.venta)) return false;
+    const m = toARTMin(p.ts);
+    return m >= 10 * 60 && m <= 15 * 60; // rueda 10:00–15:00 ART
+  });
+  if (!valid.length) return null;
+  const ventas = valid.map(p => p.venta);
+  const minVal = Math.min(...ventas);
+  const maxVal = Math.max(...ventas);
+  const minPt = valid.find(p => p.venta === minVal);
+  const maxPt = valid.find(p => p.venta === maxVal);
+  const avg = +(ventas.reduce((a, b) => a + b, 0) / ventas.length).toFixed(2);
+  return {
+    open: valid[0].venta,
+    close: valid[valid.length - 1].venta,
+    min: minVal,
+    max: maxVal,
+    avg,
+    range: +(maxVal - minVal).toFixed(2),
+    minAt: minPt ? slotLabel(toARTMin(minPt.ts)) : null,
+    maxAt: maxPt ? slotLabel(toARTMin(maxPt.ts)) : null,
+    pointCount: valid.length,
+  };
+}
+
+async function getDaySummary(dateStr) {
+  const day = await getDay(dateStr);
+  const summary = computeDaySummary(day.points);
+  if (!summary) return { date: dateStr, pointCount: 0, allowed: day.allowed };
+
+  let cierreAnterior = null;
+  try {
+    const cierreStore = require('./mayoristaCierreStore');
+    const ant = cierreStore.getCierreAnterior();
+    if (ant.cierreValor != null) cierreAnterior = ant;
+  } catch { /* opcional */ }
+
+  return { date: dateStr, ...summary, cierreAnterior };
+}
+
+/**
+ * Calcula estadísticas por franja horaria en los últimos N días.
+ * Útil para saber a qué hora históricamente el TC estuvo más bajo.
+ */
+async function getInsights(opts = {}) {
+  const maxDays = Math.min(Number(opts.days) || 20, 60);
+  const SLOT_MIN = 5;
+  const SLOTS_TOTAL = (5 * 60) / SLOT_MIN + 1; // 61 slots 10:00–15:00
+
+  const index = await listDays();
+  const recentDays = (index.days || []).slice(0, maxDays);
+
+  if (!recentDays.length) {
+    return { daysAnalyzed: 0, slots: [], bestWindows: [], message: 'Sin datos históricos aún' };
+  }
+
+  const slotMatrix = {}; // slotIdx → [price]
+  let daysWithData = 0;
+
+  for (const d of recentDays) {
+    const dayData = await getDay(d.date);
+    if (!dayData.points.length) continue;
+    daysWithData++;
+    for (const p of dayData.points) {
+      const norm = normalizePoint(p);
+      if (!norm) continue;
+      const artMin = toARTMin(norm.ts);
+      const slotIdx = Math.floor((artMin - 10 * 60) / SLOT_MIN);
+      if (slotIdx < 0 || slotIdx >= SLOTS_TOTAL) continue;
+      if (!slotMatrix[slotIdx]) slotMatrix[slotIdx] = [];
+      slotMatrix[slotIdx].push(norm.venta);
+    }
+  }
+
+  const slots = [];
+  for (let i = 0; i < SLOTS_TOTAL; i++) {
+    const artMin = 10 * 60 + i * SLOT_MIN;
+    const time = slotLabel(artMin);
+    const vals = (slotMatrix[i] || []).sort((a, b) => a - b);
+    if (!vals.length) {
+      slots.push({ time, count: 0, avg: null, min: null, max: null, p25: null, p75: null, relDev: null, relDevPct: null });
+      continue;
+    }
+    const avg = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+    const p25 = +vals[Math.floor(vals.length * 0.25)].toFixed(2);
+    const p75 = +vals[Math.min(Math.floor(vals.length * 0.75), vals.length - 1)].toFixed(2);
+    slots.push({ time, count: vals.length, avg, min: +vals[0].toFixed(2), max: +vals[vals.length - 1].toFixed(2), p25, p75 });
+  }
+
+  const validAvgs = slots.filter(s => s.avg != null).map(s => s.avg);
+  const globalAvg = validAvgs.length
+    ? +(validAvgs.reduce((a, b) => a + b, 0) / validAvgs.length).toFixed(2)
+    : null;
+
+  for (const s of slots) {
+    s.relDev = s.avg != null && globalAvg ? +(s.avg - globalAvg).toFixed(2) : null;
+    s.relDevPct = s.avg != null && globalAvg ? +(((s.avg - globalAvg) / globalAvg) * 100).toFixed(3) : null;
+  }
+
+  const bestWindows = slots
+    .filter(s => s.relDev != null)
+    .sort((a, b) => a.relDev - b.relDev)
+    .slice(0, 6)
+    .map(s => ({ time: s.time, avg: s.avg, relDevPct: s.relDevPct }));
+
+  return { daysAnalyzed: daysWithData, globalAvg, slots, bestWindows };
+}
+
 module.exports = {
   addPoint,
   getDay,
   listDays,
   syncDays,
+  getDaySummary,
+  getInsights,
+  downsamplePoints,
   getHistoryStartDate,
   todayART,
   SUPABASE_ENABLED: SUPABASE_CONFIGURED,

@@ -345,6 +345,123 @@
     .previous-chart-title { font-size: .72rem; font-weight: 700; color: var(--text); }
     .previous-chart-subtitle { font-size: .62rem; color: var(--muted); }
     .previous-chart-wrapper { position: relative; height: 92px; }
+
+    /* ── Panel Historial ── */
+    .chart-action-btn {
+      font: 600 .72rem var(--font);
+      padding: .28rem .65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      white-space: nowrap;
+    }
+    .chart-action-btn:hover { color: var(--text); border-color: var(--blue); }
+    .chart-action-btn.active { color: var(--blue); border-color: var(--blue); background: rgba(88,166,255,.08); }
+    .chart-btn-row { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
+
+    .hist-panel {
+      border-top: 1px solid var(--border);
+      padding: .7rem 0 .3rem;
+      margin-bottom: .5rem;
+    }
+    .hist-top-row {
+      display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem;
+    }
+    .hist-chips {
+      display: flex; flex-wrap: wrap; gap: .3rem; flex: 1; min-width: 0;
+    }
+    .hist-chip {
+      font: 600 .7rem var(--font);
+      padding: .22rem .55rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      white-space: nowrap;
+    }
+    .hist-chip:hover { color: var(--text); border-color: var(--muted); }
+    .hist-chip.selected { color: var(--blue); border-color: var(--blue); background: rgba(88,166,255,.1); }
+    .hist-chip.compare-chip { color: var(--yellow); border-color: var(--yellow); background: rgba(210,153,34,.08); }
+    .hist-chip.today-chip { color: var(--green); border-color: var(--green); background: rgba(63,185,80,.08); }
+    .hist-empty { font-size: .72rem; color: var(--muted); }
+    .hist-loading { font-size: .72rem; color: var(--muted); }
+
+    .hist-compare-hint {
+      font-size: .65rem; color: var(--muted); margin-top: .3rem;
+    }
+
+    .hist-summary-strip {
+      display: flex; flex-wrap: wrap; gap: .5rem .9rem;
+      padding: .5rem 0 .2rem;
+      border-top: 1px solid var(--border);
+      margin-top: .35rem;
+    }
+    .hist-stat { display: flex; flex-direction: column; gap: .05rem; }
+    .hist-stat-lbl { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .hist-stat-val { font: 600 .82rem var(--font); color: var(--text); }
+    .hist-stat-val.green { color: var(--green); }
+    .hist-stat-val.red   { color: var(--red); }
+    .hist-stat-val small { font-size: .65rem; color: var(--muted); font-weight: 400; margin-left: .25em; }
+
+    /* ── Panel Patrón horario ── */
+    .hist-insights-view {
+      border-top: 1px solid var(--border);
+      padding-top: .7rem;
+      margin-top: .5rem;
+    }
+    .hist-insights-title {
+      font-size: .72rem; font-weight: 700; color: var(--text); margin-bottom: .5rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .hist-insights-note {
+      font-size: .65rem; color: var(--muted); font-weight: 400;
+    }
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+      gap: .25rem;
+    }
+    .insights-slot {
+      display: flex; flex-direction: column; align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: .3rem .2rem .25rem;
+      font-size: .62rem;
+      background: var(--surface2);
+      position: relative; overflow: hidden;
+    }
+    .insights-slot-bar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--muted);
+      opacity: .35;
+    }
+    .insights-slot-bar.cheap  { background: var(--green); opacity: .7; }
+    .insights-slot-bar.mid    { background: var(--yellow); opacity: .55; }
+    .insights-slot-bar.expensive { background: var(--red); opacity: .7; }
+    .insights-slot-time { font-weight: 700; color: var(--muted); margin-bottom: .1rem; }
+    .insights-slot-dev  { font-weight: 600; }
+    .insights-slot-dev.cheap { color: var(--green); }
+    .insights-slot-dev.mid   { color: var(--yellow); }
+    .insights-slot-dev.expensive { color: var(--red); }
+    .insights-best-list {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+      margin-top: .5rem;
+    }
+    .insights-best-item {
+      padding: .25rem .55rem;
+      border: 1px solid var(--green);
+      border-radius: 5px;
+      font: 600 .7rem var(--font);
+      color: var(--green);
+      background: rgba(63,185,80,.06);
+    }
+    .insights-no-data { font-size: .75rem; color: var(--muted); padding: .5rem 0; }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -957,7 +1074,22 @@
             <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
             <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
           </div>
+          <div class="chart-btn-row">
+            <button class="chart-action-btn" id="btnHistorial">Historial</button>
+            <button class="chart-action-btn" id="btnPatron" style="display:none">Patrón</button>
+          </div>
         </div>
+
+        <!-- Panel historial -->
+        <div id="histPanel" class="hist-panel" style="display:none">
+          <div class="hist-top-row">
+            <div id="histDayChips" class="hist-chips"><span class="hist-loading">Cargando...</span></div>
+          </div>
+          <div class="hist-compare-hint">Click para seleccionar · Shift+click o Ctrl+click para comparar hasta 4 días</div>
+          <div id="histSummary" class="hist-summary-strip"></div>
+          <div id="histInsights" class="hist-insights-view" style="display:none"></div>
+        </div>
+
         <div id="chartContainer">
           <div class="chart-no-data" id="chartNoData">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
@@ -1428,8 +1560,8 @@
 
   // ── Gráfico intradiario ──
   // Genera slots fijos cada SLOT_MIN minutos de 10:00 a 15:00 ART
-  const SLOT_MIN = 10; // resolución del eje X
-  const SLOTS_COUNT = (5 * 60) / SLOT_MIN + 1; // 10:00..15:00 inclusive = 31 slots
+  const SLOT_MIN = 5; // resolución del eje X (5 min = 61 slots)
+  const SLOTS_COUNT = (5 * 60) / SLOT_MIN + 1; // 10:00..15:00 inclusive = 61 slots
 
   function generateSlots() {
     const slots = [];
@@ -1741,7 +1873,13 @@
     } catch {}
   }
 
+  let lsLastAddAt = 0;
+  const LS_ADD_THROTTLE_MS = 5 * 60 * 1000; // 1 punto por slot de 5 min
+
   function lsAddPoint(venta) {
+    const now = Date.now();
+    if (now - lsLastAddAt < LS_ADD_THROTTLE_MS) return lsLoad();
+    lsLastAddAt = now;
     const points = lsLoad();
     points.push({ ts: new Date().toISOString(), venta, compra: venta });
     lsSave(points);
@@ -1795,8 +1933,219 @@
   }
 
   async function fetchHistory() {
+    // Si el panel historial está abierto con días seleccionados, refrescar el día de hoy si está entre ellos
+    if (histOpen && histSelectedDays.length > 0) {
+      const today = todayARTString();
+      if (histSelectedDays.includes(today)) await loadHistChart();
+      return;
+    }
     await buildTodayChart();
   }
+
+  // ── Panel Historial ──
+  let histOpen = false;
+  let histDays = [];
+  let histSelectedDays = [];
+  let histInsightsOpen = false;
+  let histInsightsCache = null;
+
+  async function loadHistoryIndex() {
+    try {
+      const res = await fetch('/api/tc-history', { cache: 'no-store' });
+      const json = await res.json();
+      if (json.ok) histDays = json.days || [];
+    } catch {}
+    renderHistChips();
+  }
+
+  function renderHistChips() {
+    const container = document.getElementById('histDayChips');
+    if (!histDays.length) {
+      container.innerHTML = '<span class="hist-empty">Sin días con datos aún. Los datos se acumulan durante la rueda (10:00–15:00).</span>';
+      return;
+    }
+    const today = todayARTString();
+    container.innerHTML = histDays.map(d => {
+      const isToday = d.date === today;
+      const isSel   = histSelectedDays.includes(d.date);
+      const isComp  = isSel && histSelectedDays.indexOf(d.date) > 0;
+      let cls = 'hist-chip';
+      if (isToday && isSel) cls += ' today-chip';
+      else if (isSel && !isComp) cls += ' selected';
+      else if (isComp) cls += ' compare-chip';
+      return `<button class="${cls}" data-date="${d.date}" title="${d.pointCount} puntos · ${d.date}">
+        ${isToday ? 'Hoy' : formatStoredDay(d.date)}
+      </button>`;
+    }).join('');
+    container.querySelectorAll('.hist-chip').forEach(btn => {
+      btn.addEventListener('click', e => onHistChipClick(e.currentTarget.dataset.date, e.shiftKey || e.ctrlKey || e.metaKey));
+    });
+  }
+
+  async function onHistChipClick(date, addMode) {
+    if (addMode) {
+      if (histSelectedDays.includes(date)) {
+        histSelectedDays = histSelectedDays.filter(d => d !== date);
+      } else if (histSelectedDays.length < 4) {
+        histSelectedDays = [...histSelectedDays, date];
+      }
+    } else {
+      histSelectedDays = [date];
+    }
+    renderHistChips();
+    await loadHistChart();
+    if (histSelectedDays.length > 0) await showDaySummary(histSelectedDays[0]);
+  }
+
+  async function loadHistChart() {
+    if (!histSelectedDays.length) return;
+    const daySeries = await Promise.all(histSelectedDays.map(async date => {
+      const today = todayARTString();
+      if (date === today) {
+        const pts = await fetchTodayChartPoints();
+        return { date, points: pts };
+      }
+      try {
+        const res = await fetch(`/api/tc-history/${date}`, { cache: 'no-store' });
+        const json = await res.json();
+        return { date, points: (json.ok && Array.isArray(json.points)) ? json.points : [] };
+      } catch {
+        return { date, points: [] };
+      }
+    }));
+    const titleEl = document.getElementById('chartTitle');
+    const today = todayARTString();
+    if (histSelectedDays.length === 1 && histSelectedDays[0] === today) {
+      titleEl.textContent = `USD/ARS Mayorista — hoy (${formatStoredDay(today)})`;
+    } else {
+      titleEl.textContent = `USD/ARS Mayorista · ${histSelectedDays.map(d => formatStoredDay(d)).join(' vs ')}`;
+    }
+    buildChartCompare(daySeries);
+  }
+
+  async function showDaySummary(date) {
+    const el = document.getElementById('histSummary');
+    el.innerHTML = '<span class="hist-loading">Cargando resumen...</span>';
+    try {
+      const res = await fetch(`/api/tc-history/${date}/summary`, { cache: 'no-store' });
+      const d = await res.json();
+      if (!d.ok || !d.pointCount) { el.innerHTML = ''; return; }
+      const f = v => v != null ? '$' + v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+      const chg = d.open && d.close ? (((d.close - d.open) / d.open) * 100).toFixed(2) : null;
+      const chgCls = chg > 0 ? 'red' : chg < 0 ? 'green' : '';
+      const isToday = date === todayARTString();
+      const closeLbl = isToday ? 'Último' : 'Cierre';
+      el.innerHTML = `
+        <div class="hist-stat"><span class="hist-stat-lbl">Apertura</span><span class="hist-stat-val">${f(d.open)}</span></div>
+        <div class="hist-stat"><span class="hist-stat-lbl">${closeLbl}</span><span class="hist-stat-val">${f(d.close)}${chg !== null ? `<small class="${chgCls}">${chg > 0 ? '+' : ''}${chg}%</small>` : ''}</span></div>
+        <div class="hist-stat"><span class="hist-stat-lbl">Mínimo</span><span class="hist-stat-val green">${f(d.min)} <small>${d.minAt ?? ''}</small></span></div>
+        <div class="hist-stat"><span class="hist-stat-lbl">Máximo</span><span class="hist-stat-val red">${f(d.max)} <small>${d.maxAt ?? ''}</small></span></div>
+        <div class="hist-stat"><span class="hist-stat-lbl">Rango</span><span class="hist-stat-val">$${d.range?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span></div>
+        <div class="hist-stat"><span class="hist-stat-lbl">Puntos</span><span class="hist-stat-val">${d.pointCount}</span></div>
+        ${d.cierreAnterior?.cierreValor ? `<div class="hist-stat"><span class="hist-stat-lbl">Cierre ant.</span><span class="hist-stat-val">${f(d.cierreAnterior.cierreValor)} <small>${formatStoredDay(d.cierreAnterior.cierreFecha)}</small></span></div>` : ''}
+      `;
+    } catch { el.innerHTML = ''; }
+  }
+
+  async function toggleHistPanel() {
+    histOpen = !histOpen;
+    const btn = document.getElementById('btnHistorial');
+    const panel = document.getElementById('histPanel');
+    const btnP = document.getElementById('btnPatron');
+    btn.classList.toggle('active', histOpen);
+    panel.style.display = histOpen ? 'block' : 'none';
+    btnP.style.display = histOpen ? 'inline-flex' : 'none';
+
+    if (histOpen && !histDays.length) {
+      await loadHistoryIndex();
+      const today = todayARTString();
+      if (histSelectedDays.length === 0) {
+        const hasToday = histDays.some(d => d.date === today);
+        histSelectedDays = hasToday ? [today] : (histDays[0] ? [histDays[0].date] : []);
+        renderHistChips();
+        if (histSelectedDays.length) {
+          await loadHistChart();
+          await showDaySummary(histSelectedDays[0]);
+        }
+      }
+    } else if (!histOpen) {
+      // Volver al gráfico de hoy
+      histInsightsOpen = false;
+      document.getElementById('histInsights').style.display = 'none';
+      btnP.classList.remove('active');
+      await buildTodayChart();
+    }
+  }
+
+  async function togglePatronPanel() {
+    histInsightsOpen = !histInsightsOpen;
+    const btn = document.getElementById('btnPatron');
+    const panel = document.getElementById('histInsights');
+    btn.classList.toggle('active', histInsightsOpen);
+    panel.style.display = histInsightsOpen ? 'block' : 'none';
+    if (histInsightsOpen && !histInsightsCache) await loadInsights();
+  }
+
+  async function loadInsights() {
+    const el = document.getElementById('histInsights');
+    el.innerHTML = '<span class="hist-loading">Calculando patrón horario...</span>';
+    try {
+      const res = await fetch('/api/tc-history/insights?days=30', { cache: 'no-store' });
+      const data = await res.json();
+      histInsightsCache = data;
+      renderInsights(data);
+    } catch {
+      el.innerHTML = '<span class="hist-loading">No se pudieron cargar los datos.</span>';
+    }
+  }
+
+  function renderInsights(data) {
+    const el = document.getElementById('histInsights');
+    if (!data.ok || data.daysAnalyzed < 2) {
+      el.innerHTML = `<div class="insights-no-data">Se necesitan al menos 2 días de datos para mostrar el patrón horario. Actualmente: ${data.daysAnalyzed ?? 0} día(s).</div>`;
+      return;
+    }
+
+    const withData = (data.slots || []).filter(s => s.avg != null);
+    if (!withData.length) {
+      el.innerHTML = '<div class="insights-no-data">Sin suficientes datos por franja horaria aún.</div>';
+      return;
+    }
+
+    const maxAbsDev = Math.max(...withData.map(s => Math.abs(s.relDev || 0)));
+
+    const grid = (data.slots || []).map(s => {
+      if (s.avg == null) {
+        return `<div class="insights-slot"><span class="insights-slot-time">${s.time}</span><span class="insights-slot-dev" style="color:var(--muted)">—</span><div class="insights-slot-bar"></div></div>`;
+      }
+      const dev = s.relDev || 0;
+      const devPct = s.relDevPct || 0;
+      const cls = dev <= -0.5 ? 'cheap' : dev >= 0.5 ? 'expensive' : 'mid';
+      const sign = dev > 0 ? '+' : '';
+      const barW = maxAbsDev > 0 ? Math.round(Math.abs(dev) / maxAbsDev * 100) : 0;
+      const devLabel = `${sign}$${Math.abs(dev).toLocaleString('es-AR', { minimumFractionDigits: 0 })}`;
+      return `<div class="insights-slot"><span class="insights-slot-time">${s.time}</span><span class="insights-slot-dev ${cls}">${devLabel}</span><div class="insights-slot-bar ${cls}" style="height:${Math.max(barW * 0.04, 2)}px"></div></div>`;
+    }).join('');
+
+    const bestList = (data.bestWindows || []).map(w =>
+      `<div class="insights-best-item">${w.time} <small>(${w.relDevPct > 0 ? '+' : ''}${w.relDevPct?.toFixed(2)}%)</small></div>`
+    ).join('');
+
+    el.innerHTML = `
+      <div class="hist-insights-title">
+        Patrón histórico por franja horaria
+        <span class="hist-insights-note">· ${data.daysAnalyzed} días analizados · desviación vs promedio del período</span>
+      </div>
+      <p style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">
+        Verde = históricamente más barato que el promedio · Rojo = más caro · Dato estadístico, no predicción.
+      </p>
+      <div class="insights-grid">${grid}</div>
+      ${bestList ? `<div style="font-size:.68rem;color:var(--muted);margin:.55rem 0 .2rem;font-weight:600;">Franjas históricamente más baratas:</div><div class="insights-best-list">${bestList}</div>` : ''}
+    `;
+  }
+
+  document.getElementById('btnHistorial').addEventListener('click', toggleHistPanel);
+  document.getElementById('btnPatron').addEventListener('click', togglePatronPanel);
 
   // ── Fetch Noticias ──
   async function fetchNews() {
