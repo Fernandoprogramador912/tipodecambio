@@ -568,6 +568,14 @@
     }
     .outlook-chip.alcista { border-color: var(--red); color: var(--red); }
     .outlook-chip.bajista { border-color: var(--green); color: var(--green); }
+    .outlook-scenarios { display: flex; flex-direction: column; gap: .4rem; margin-top: .55rem; }
+    .outlook-ifthen {
+      border: 1px solid var(--border); border-radius: 8px; padding: .5rem .65rem;
+      background: var(--surface2);
+    }
+    .outlook-ifthen .if-lbl { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    .outlook-ifthen .if-txt { font-size: .8rem; color: var(--text); margin: .12rem 0 .28rem; }
+    .outlook-ifthen .then-txt { font-size: .78rem; line-height: 1.4; color: var(--text); }
     .outlook-meta { font-size: .63rem; color: var(--muted); margin-top: .45rem; }
     .outlook-disclaimer { font-size: .63rem; color: var(--muted); margin-top: .3rem; font-style: italic; }
     .outlook-score-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .55rem; }
@@ -2455,6 +2463,13 @@
           <p style="margin-top:.35rem">${escHtml(a.nextDays?.text || '—')}</p>
         </div>
       </div>
+      ${(a.scenarios || []).filter(s => s.if).length ? `<div class="outlook-box" style="margin-top:.55rem"><h4>Qué puede pasar, según el evento</h4><div class="outlook-scenarios">${(a.scenarios || []).filter(s => s.if).map(s => `
+        <div class="outlook-ifthen">
+          <div class="if-lbl">Si</div>
+          <div class="if-txt">${escHtml(s.if)}</div>
+          <span class="outlook-bias ${s.thenBias || 'lateral'}">${biasLabel[s.thenBias] || s.thenBias || ''}</span>
+          <div class="then-txt" style="margin-top:.3rem">${escHtml(s.then || '')}</div>
+        </div>`).join('')}</div></div>` : ''}
       ${drivers ? `<div class="outlook-drivers">${drivers}</div>` : ''}
       ${risks ? `<div class="outlook-box" style="margin-top:.45rem"><h4>Riesgos</h4><ul style="margin-left:1rem;font-size:.75rem;color:var(--text)">${risks}</ul></div>` : ''}
       <div class="outlook-disclaimer">${escHtml(a.disclaimer || '')}</div>

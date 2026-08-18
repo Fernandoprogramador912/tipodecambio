@@ -196,8 +196,19 @@ function parseAnalysis(raw) {
       }))
       : [],
     risks: Array.isArray(data.risks) ? data.risks.map(r => String(r).slice(0, 200)).slice(0, 5) : [],
+    scenarios: Array.isArray(data.scenarios)
+      ? data.scenarios.slice(0, 6).map(s => {
+        const rawBias = String(s.thenBias || s.effect || '').toLowerCase();
+        const thenRaw = String(s.thenText || s.then || s.note || '');
+        return {
+          if: String(s.if || s.si || s.condition || '').slice(0, 220),
+          thenBias: allowed.has(rawBias) ? rawBias : 'lateral',
+          then: thenRaw.slice(0, 320),
+        };
+      }).filter(s => s.if)
+      : [],
     confidence: Math.max(0, Math.min(100, Number(data.confidence) || 0)),
-    disclaimer: 'Escenario orientativo. No es una recomendación de compra/venta ni una predicción exacta.',
+    disclaimer: 'Escenario orientativo. El sesgo base vale si no cambia el contexto; cada condicional indica qué pasaría si ocurre ese evento. No es recomendación de compra/venta.',
   };
 }
 
@@ -214,12 +225,18 @@ Respondé SOLO JSON válido con esta forma:
 {
   "todayBias": "alcista|bajista|lateral",
   "todaySummary": "2-4 oraciones sobre la rueda del día y el horario más relevante",
-  "nextDays": { "bias": "alcista|bajista|lateral", "horizon": "2 a 5 ruedas", "text": "2-4 oraciones" },
-  "drivers": [{ "factor": "cosecha|deuda|BCRA|noticias|estacionalidad|otro", "effect": "alcista|bajista|neutro", "note": "..." }],
+  "nextDays": { "bias": "alcista|bajista|lateral", "horizon": "2 a 5 ruedas", "text": "2-4 oraciones. El sesgo base asume que no hay sorpresa." },
+  "drivers": [{ "factor": "cosecha|deuda|BCRA|noticias|elecciones|estacionalidad|otro", "effect": "alcista|bajista|neutro", "note": "..." }],
+  "scenarios": [
+    { "if": "evento concreto (ej. gana el oficialismo / sale el desembolso FMI)", "thenBias": "bajista|alcista|lateral", "then": "qué haría el mayorista y por qué" },
+    { "if": "el evento contrario", "thenBias": "alcista|bajista|lateral", "then": "qué haría el mayorista" }
+  ],
   "risks": ["..."],
   "confidence": 0-100
 }
 Sesgo alcista = el peso se debilita (TC sube). Bajista = el peso se fortalece o el TC baja/se aplana.
+El campo scenarios es OBLIGATORIO (mínimo 2, máximo 4). Escribí en castellano claro: "Si ... entonces el TC puede subir/bajar porque ...".
+Usá noticias del día o el calendario (elecciones, FMI, vencimientos, cosecha, BCRA). No inventes un evento electoral si no hay indicios en las noticias.
 ${ARGENTINA_FX_CONTEXT}`,
       },
       {

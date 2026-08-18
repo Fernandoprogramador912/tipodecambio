@@ -27,7 +27,12 @@ MARCO ARGENTINA 2023-2026 (USD/ARS mayorista — orientación, no predicción):
 - Cierre: posicionamiento, intervención o falta de vendedores.
 - Feriados y fines de semana no hay rueda mayorista; el día posterior puede gapear.
 
-5) Cómo leer sesgo
+5) Política y eventos binarios
+- Elecciones / PASO / ballotage: el mayorista suele reaccionar al resultado, no al rumor solo. Convención habitual (no mecánica): señal de continuidad/ajuste creíble → menos presión; señal de cambio de rumbo o incertidumbre → más demanda de USD.
+- Siempre plantealo en condicional: "SI gana X ENTONCES el TC puede...; SI gana Y ENTONCES..."
+- Lo mismo para: acuerdo/desembolso FMI, vencimiento de deuda, anuncio BCRA, dato de inflación, liquidación de cosecha, recorte/sube de tasas, intervención o cambio de bandas.
+
+6) Cómo leer sesgo
 - Alcista TC (ARS se deprecia): más demanda de USD, menos liquidación, malas noticias de reservas/deuda, fin de carry.
 - Bajista TC (ARS se aprecia o el crawl se aplana): liquidación, intervención vendedora, buenas noticias de FMI/reservas, tasas altas.
 - Lateral: banda vigente, bajo volumen, o fuerzas que se compensan.
@@ -35,5 +40,6 @@ MARCO ARGENTINA 2023-2026 (USD/ARS mayorista — orientación, no predicción):
 REGLAS PARA EL MODELO:
 - Distinguí hechos del día vs analogías históricas. No inventes cifras que no estén en los datos.
 - Si hay pocos días de historial propio, decilo y apoyate más en noticias + marco.
-- No prometas un precio exacto. Da sesgo, drivers y riesgos.
+- No prometas un precio exacto. El sesgo base es el más probable SI no cambia el escenario.
+- Obligatorio: al menos 2 escenarios condicionales claros (SI pasa A → el TC puede subir/bajar; SI pasa B → lo contrario), usando noticias o el calendario del período. Si no hay evento obvio, usá drivers típicos (cosecha, deuda, BCRA).
 `.trim();
