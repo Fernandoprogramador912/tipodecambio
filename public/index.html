@@ -367,39 +367,110 @@
       padding: .7rem 0 .3rem;
       margin-bottom: .5rem;
     }
-    .hist-top-row {
-      display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem;
-    }
-    .hist-chips {
-      display: flex; flex-wrap: wrap; gap: .3rem; flex: 1; min-width: 0;
-    }
-    .hist-chip {
-      font: 600 .7rem var(--font);
-      padding: .22rem .55rem;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      background: var(--surface2);
-      color: var(--muted);
-      cursor: pointer;
-      transition: color .15s, border-color .15s, background .15s;
-      white-space: nowrap;
-    }
-    .hist-chip:hover { color: var(--text); border-color: var(--muted); }
-    .hist-chip.selected { color: var(--blue); border-color: var(--blue); background: rgba(88,166,255,.1); }
-    .hist-chip.compare-chip { color: var(--yellow); border-color: var(--yellow); background: rgba(210,153,34,.08); }
-    .hist-chip.today-chip { color: var(--green); border-color: var(--green); background: rgba(63,185,80,.08); }
     .hist-empty { font-size: .72rem; color: var(--muted); }
     .hist-loading { font-size: .72rem; color: var(--muted); }
 
+    /* ── Calendario historial compacto ── */
+    .hist-cal-row {
+      display: flex; align-items: flex-start; gap: .85rem; flex-wrap: wrap;
+    }
+    .hist-cal-wrap {
+      width: 210px; flex-shrink: 0;
+    }
+    .hist-cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: .3rem;
+    }
+    .hist-cal-nav {
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; color: var(--muted); padding: .08rem .38rem;
+      font-size: .75rem; line-height: 1; transition: color .15s, border-color .15s;
+    }
+    .hist-cal-nav:hover { color: var(--text); border-color: var(--muted); }
+    .hist-cal-month { font: 700 .72rem var(--font); color: var(--text); }
+    .hist-cal-grid {
+      display: grid; grid-template-columns: repeat(7, 26px); gap: 2px;
+      justify-content: start;
+    }
+    .hist-cal-dow {
+      font: 700 .55rem var(--font); color: var(--muted);
+      text-align: center; padding: .08rem 0 .12rem;
+      width: 26px;
+    }
+    .hist-cal-day {
+      width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; font: 600 .65rem var(--font);
+      border: 1px solid transparent; transition: background .12s, border-color .12s;
+      user-select: none;
+    }
+    /* fin de semana / feriado: no clickeable */
+    .hist-cal-day.closed {
+      cursor: default;
+      color: #c97a7a;
+      background: rgba(248, 81, 73, .12);
+      border-color: rgba(248, 81, 73, .28);
+      opacity: .85;
+    }
+    .hist-cal-day.closed:hover {
+      background: rgba(248, 81, 73, .12);
+      border-color: rgba(248, 81, 73, .28);
+    }
+    /* sin datos / fuera del mes */
+    .hist-cal-day.no-data   { color: var(--muted); opacity: .28; }
+    .hist-cal-day.other-month { color: var(--muted); opacity: .12; }
+    .hist-cal-day.future    { color: var(--muted); opacity: .18; }
+    /* con datos */
+    .hist-cal-day.has-data {
+      cursor: pointer;
+      color: var(--blue);
+      background: rgba(88,166,255,.12);
+      border-color: rgba(88,166,255,.3);
+    }
+    .hist-cal-day.has-data:hover {
+      background: rgba(88,166,255,.25); border-color: var(--blue);
+    }
+    /* hoy con datos */
+    .hist-cal-day.is-today.has-data {
+      color: var(--green);
+      background: rgba(63,185,80,.13);
+      border-color: var(--green);
+    }
+    .hist-cal-day.is-today.has-data:hover {
+      background: rgba(63,185,80,.25);
+    }
+    /* seleccionado primario */
+    .hist-cal-day.sel-primary {
+      background: var(--blue) !important;
+      color: #fff !important;
+      border-color: var(--blue) !important;
+    }
+    /* seleccionado para comparar */
+    .hist-cal-day.sel-compare {
+      background: var(--yellow) !important;
+      color: #0d1117 !important;
+      border-color: var(--yellow) !important;
+    }
+    /* leyenda */
+    .hist-cal-legend {
+      display: flex; flex-wrap: wrap; gap: .25rem .55rem;
+      margin-top: .35rem;
+    }
+    .hist-cal-leg {
+      display: flex; align-items: center; gap: .28rem;
+      font-size: .62rem; color: var(--muted);
+    }
+    .hist-cal-leg-dot {
+      width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0;
+    }
     .hist-compare-hint {
-      font-size: .65rem; color: var(--muted); margin-top: .3rem;
+      font-size: .63rem; color: var(--muted); margin-top: .35rem;
     }
 
     .hist-summary-strip {
-      display: flex; flex-wrap: wrap; gap: .5rem .9rem;
-      padding: .5rem 0 .2rem;
-      border-top: 1px solid var(--border);
-      margin-top: .35rem;
+      display: flex; flex-wrap: wrap; gap: .4rem .75rem;
+      padding: .1rem 0 .2rem;
+      flex: 1;
+      min-width: 180px;
     }
     .hist-stat { display: flex; flex-direction: column; gap: .05rem; }
     .hist-stat-lbl { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
@@ -462,6 +533,57 @@
       background: rgba(63,185,80,.06);
     }
     .insights-no-data { font-size: .75rem; color: var(--muted); padding: .5rem 0; }
+
+    .outlook-panel {
+      border-top: 1px solid var(--border);
+      padding: .7rem 0 .2rem;
+      margin-bottom: .45rem;
+    }
+    .outlook-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .5rem; flex-wrap: wrap; margin-bottom: .45rem;
+    }
+    .outlook-title { font: 700 .78rem var(--font); color: var(--text); }
+    .outlook-bias {
+      font: 700 .68rem var(--font); padding: .18rem .5rem; border-radius: 999px;
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .outlook-bias.alcista { color: var(--red); background: rgba(248,81,73,.12); }
+    .outlook-bias.bajista { color: var(--green); background: rgba(63,185,80,.12); }
+    .outlook-bias.lateral { color: var(--yellow); background: rgba(210,153,34,.12); }
+    .outlook-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .55rem;
+    }
+    @media (max-width: 720px) { .outlook-grid { grid-template-columns: 1fr; } }
+    .outlook-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .55rem .65rem;
+    }
+    .outlook-box h4 { font-size: .65rem; color: var(--muted); text-transform: uppercase; margin-bottom: .25rem; }
+    .outlook-box p { font-size: .78rem; color: var(--text); line-height: 1.4; }
+    .outlook-drivers { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+    .outlook-chip {
+      font-size: .68rem; padding: .2rem .45rem; border-radius: 5px;
+      border: 1px solid var(--border); color: var(--text); background: var(--surface2);
+    }
+    .outlook-chip.alcista { border-color: var(--red); color: var(--red); }
+    .outlook-chip.bajista { border-color: var(--green); color: var(--green); }
+    .outlook-meta { font-size: .63rem; color: var(--muted); margin-top: .45rem; }
+    .outlook-disclaimer { font-size: .63rem; color: var(--muted); margin-top: .3rem; font-style: italic; }
+    .outlook-score-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .55rem; }
+    .outlook-verdict {
+      font: 700 .68rem var(--font); padding: .16rem .45rem; border-radius: 5px;
+    }
+    .outlook-verdict.acierto { color: var(--green); background: rgba(63,185,80,.12); }
+    .outlook-verdict.parcial { color: var(--yellow); background: rgba(210,153,34,.12); }
+    .outlook-verdict.error { color: var(--red); background: rgba(248,81,73,.12); }
+    .outlook-verdict.pendiente { color: var(--muted); background: var(--surface2); }
+    .outlook-hist-table { width: 100%; border-collapse: collapse; margin-top: .45rem; font-size: .7rem; }
+    .outlook-hist-table th, .outlook-hist-table td {
+      text-align: left; padding: .28rem .35rem; border-bottom: 1px solid var(--border);
+    }
+    .outlook-hist-table th { color: var(--muted); font-weight: 600; font-size: .62rem; text-transform: uppercase; }
+    .outlook-stats { font-size: .7rem; color: var(--muted); margin-top: .35rem; }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -1077,17 +1199,26 @@
           <div class="chart-btn-row">
             <button class="chart-action-btn" id="btnHistorial">Historial</button>
             <button class="chart-action-btn" id="btnPatron" style="display:none">Patrón</button>
+            <button class="chart-action-btn" id="btnOutlook">Análisis</button>
           </div>
         </div>
 
         <!-- Panel historial -->
         <div id="histPanel" class="hist-panel" style="display:none">
-          <div class="hist-top-row">
-            <div id="histDayChips" class="hist-chips"><span class="hist-loading">Cargando...</span></div>
+          <div class="hist-cal-row">
+            <div id="histDayChips"><span class="hist-loading">Cargando...</span></div>
+            <div id="histSummary" class="hist-summary-strip"></div>
           </div>
           <div class="hist-compare-hint">Click para seleccionar · Shift+click o Ctrl+click para comparar hasta 4 días</div>
-          <div id="histSummary" class="hist-summary-strip"></div>
           <div id="histInsights" class="hist-insights-view" style="display:none"></div>
+        </div>
+
+        <div id="outlookPanel" class="outlook-panel" style="display:none">
+          <div class="outlook-head">
+            <div class="outlook-title">Escenario TC · IA</div>
+            <button class="chart-action-btn" id="btnOutlookRun">Generar ahora</button>
+          </div>
+          <div id="outlookBody"><span class="hist-loading">Cargando análisis...</span></div>
         </div>
 
         <div id="chartContainer">
@@ -1824,7 +1955,7 @@
       renderSpread(mep, usd, spreadMepMayorista || { montoARS: null, pct: null });
       if (forexGlobal) renderFxGlobal(forexGlobal, usd);
       // Guardar punto en localStorage y actualizar gráfico
-      if (usd?.venta && isChartRecordingHours()) {
+      if (usd?.venta && isChartRecordingHours() && !usd._fromCierre && !usd._fromClose) {
         lsAddPoint(usd.venta);
         fetchHistory();
       }
@@ -1949,40 +2080,170 @@
   let histInsightsOpen = false;
   let histInsightsCache = null;
 
+  let calViewYear = null;
+  let calViewMonth = null;
+
+  const AR_HOLIDAYS = {
+    '2026-01-01': 'Año Nuevo',
+    '2026-02-16': 'Carnaval',
+    '2026-02-17': 'Carnaval',
+    '2026-03-24': 'Día Nacional de la Memoria',
+    '2026-04-02': 'Día del Veterano y de Malvinas',
+    '2026-04-03': 'Viernes Santo',
+    '2026-05-01': 'Día del Trabajador',
+    '2026-05-25': 'Revolución de Mayo',
+    '2026-06-15': 'Paso a la Inmortalidad de Güemes',
+    '2026-06-20': 'Día de la Bandera',
+    '2026-07-09': 'Independencia',
+    '2026-08-17': 'Paso a la Inmortalidad de San Martín',
+    '2026-10-12': 'Día del Respeto a la Diversidad Cultural',
+    '2026-11-20': 'Día de la Soberanía Nacional',
+    '2026-12-08': 'Inmaculada Concepción',
+    '2026-12-25': 'Navidad',
+  };
+
+  function holidayName(dateStr) {
+    return AR_HOLIDAYS[dateStr] || null;
+  }
+
+  function isWeekendDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    return dow === 0 || dow === 6;
+  }
+
+  function isMarketClosed(dateStr) {
+    return Boolean(isWeekendDate(dateStr) || holidayName(dateStr));
+  }
+
   async function loadHistoryIndex() {
     try {
       const res = await fetch('/api/tc-history', { cache: 'no-store' });
       const json = await res.json();
       if (json.ok) histDays = json.days || [];
     } catch {}
-    renderHistChips();
+    // Inicializar la vista del calendario al mes actual
+    if (calViewYear === null) {
+      const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      calViewYear  = art.getUTCFullYear();
+      calViewMonth = art.getUTCMonth();
+    }
+    renderCalendar();
   }
 
-  function renderHistChips() {
+  function renderCalendar() {
     const container = document.getElementById('histDayChips');
     if (!histDays.length) {
       container.innerHTML = '<span class="hist-empty">Sin días con datos aún. Los datos se acumulan durante la rueda (10:00–15:00).</span>';
       return;
     }
-    const today = todayARTString();
-    container.innerHTML = histDays.map(d => {
-      const isToday = d.date === today;
-      const isSel   = histSelectedDays.includes(d.date);
-      const isComp  = isSel && histSelectedDays.indexOf(d.date) > 0;
-      let cls = 'hist-chip';
-      if (isToday && isSel) cls += ' today-chip';
-      else if (isSel && !isComp) cls += ' selected';
-      else if (isComp) cls += ' compare-chip';
-      return `<button class="${cls}" data-date="${d.date}" title="${d.pointCount} puntos · ${d.date}">
-        ${isToday ? 'Hoy' : formatStoredDay(d.date)}
-      </button>`;
+
+    const today     = todayARTString();
+    const daysMap   = new Map(histDays.map(d => [d.date, d.pointCount]));
+    const year      = calViewYear;
+    const month     = calViewMonth;
+
+    const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                         'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const DOW        = ['L','M','X','J','V','S','D'];
+
+    // Primer día del mes y padding
+    const firstDow = ((new Date(year, month, 1).getDay()) + 6) % 7; // Lun=0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevDays    = new Date(year, month, 0).getDate();
+
+    let cells = [];
+
+    // días del mes anterior (relleno)
+    for (let i = firstDow - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      const m = month === 0 ? 11 : month - 1;
+      const y = month === 0 ? year - 1 : year;
+      cells.push({ day: d, dateStr: `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`, kind: 'other' });
+    }
+
+    // días del mes actual
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow     = (new Date(year, month, d).getDay() + 6) % 7;
+      cells.push({ day: d, dateStr, kind: 'current', isToday: dateStr === today, isWeekend: dow >= 5 });
+    }
+
+    // relleno final
+    const tail = cells.length % 7 === 0 ? 0 : 7 - (cells.length % 7);
+    for (let d = 1; d <= tail; d++) {
+      const m = month === 11 ? 0 : month + 1;
+      const y = month === 11 ? year + 1 : year;
+      cells.push({ day: d, dateStr: `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`, kind: 'other' });
+    }
+
+    const dowHtml = DOW.map(d => `<div class="hist-cal-dow">${d}</div>`).join('');
+
+    const cellHtml = cells.map(c => {
+      if (c.kind === 'other') return `<div class="hist-cal-day other-month">${c.day}</div>`;
+
+      const holiday = holidayName(c.dateStr);
+      const closed  = isMarketClosed(c.dateStr);
+      const hasData  = daysMap.has(c.dateStr) && !closed;
+      const isFuture = c.dateStr > today;
+      const isSel0   = histSelectedDays[0] === c.dateStr;
+      const isComp   = histSelectedDays.indexOf(c.dateStr) > 0;
+
+      let cls = 'hist-cal-day';
+      if (isFuture)       cls += ' future';
+      else if (closed)    cls += ' closed';
+      else if (hasData)   cls += ' has-data';
+      else                cls += ' no-data';
+
+      if (c.isToday && !closed) cls += ' is-today';
+      if (c.isWeekend) cls += ' weekend';
+      if (!closed && isSel0)      cls += ' sel-primary';
+      else if (!closed && isComp) cls += ' sel-compare';
+
+      const pts   = daysMap.get(c.dateStr);
+      let title = c.dateStr;
+      if (holiday) title = `${c.dateStr} · feriado: ${holiday}`;
+      else if (c.isWeekend) title = `${c.dateStr} · fin de semana`;
+      else if (hasData) title = `${c.dateStr} · ${pts} puntos`;
+      const attrs = (hasData && !isFuture && !closed) ? `data-date="${c.dateStr}" tabindex="0"` : '';
+      return `<div class="${cls}" ${attrs} title="${title}">${c.day}</div>`;
     }).join('');
-    container.querySelectorAll('.hist-chip').forEach(btn => {
-      btn.addEventListener('click', e => onHistChipClick(e.currentTarget.dataset.date, e.shiftKey || e.ctrlKey || e.metaKey));
+
+    container.innerHTML = `
+      <div class="hist-cal-wrap">
+        <div class="hist-cal-header">
+          <button class="hist-cal-nav" id="calPrev">&#8249;</button>
+          <span class="hist-cal-month">${MONTH_NAMES[month]} ${year}</span>
+          <button class="hist-cal-nav" id="calNext">&#8250;</button>
+        </div>
+        <div class="hist-cal-grid">${dowHtml}${cellHtml}</div>
+        <div class="hist-cal-legend">
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:var(--blue);opacity:.7"></span>Con datos</span>
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:var(--green);opacity:.7"></span>Hoy</span>
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:#c97a7a"></span>Feriado / finde</span>
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:var(--border)"></span>Sin datos</span>
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:var(--blue)"></span>Seleccionado</span>
+          <span class="hist-cal-leg"><span class="hist-cal-leg-dot" style="background:var(--yellow)"></span>Comparando</span>
+        </div>
+      </div>`;
+
+    container.querySelectorAll('.hist-cal-day[data-date]').forEach(el => {
+      el.addEventListener('click', e => onCalDayClick(e.currentTarget.dataset.date, e.shiftKey || e.ctrlKey || e.metaKey));
+    });
+    document.getElementById('calPrev').addEventListener('click', () => {
+      calViewMonth--;
+      if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+      renderCalendar();
+    });
+    document.getElementById('calNext').addEventListener('click', () => {
+      calViewMonth++;
+      if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+      renderCalendar();
     });
   }
 
-  async function onHistChipClick(date, addMode) {
+  async function onCalDayClick(date, addMode) {
+    if (isMarketClosed(date)) return;
     if (addMode) {
       if (histSelectedDays.includes(date)) {
         histSelectedDays = histSelectedDays.filter(d => d !== date);
@@ -1992,9 +2253,10 @@
     } else {
       histSelectedDays = [date];
     }
-    renderHistChips();
+    renderCalendar();
     await loadHistChart();
     if (histSelectedDays.length > 0) await showDaySummary(histSelectedDays[0]);
+    if (outlookOpen) await loadOutlook();
   }
 
   async function loadHistChart() {
@@ -2041,7 +2303,6 @@
         <div class="hist-stat"><span class="hist-stat-lbl">Mínimo</span><span class="hist-stat-val green">${f(d.min)} <small>${d.minAt ?? ''}</small></span></div>
         <div class="hist-stat"><span class="hist-stat-lbl">Máximo</span><span class="hist-stat-val red">${f(d.max)} <small>${d.maxAt ?? ''}</small></span></div>
         <div class="hist-stat"><span class="hist-stat-lbl">Rango</span><span class="hist-stat-val">$${d.range?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span></div>
-        <div class="hist-stat"><span class="hist-stat-lbl">Puntos</span><span class="hist-stat-val">${d.pointCount}</span></div>
         ${d.cierreAnterior?.cierreValor ? `<div class="hist-stat"><span class="hist-stat-lbl">Cierre ant.</span><span class="hist-stat-val">${f(d.cierreAnterior.cierreValor)} <small>${formatStoredDay(d.cierreAnterior.cierreFecha)}</small></span></div>` : ''}
       `;
     } catch { el.innerHTML = ''; }
@@ -2062,7 +2323,7 @@
       if (histSelectedDays.length === 0) {
         const hasToday = histDays.some(d => d.date === today);
         histSelectedDays = hasToday ? [today] : (histDays[0] ? [histDays[0].date] : []);
-        renderHistChips();
+        renderCalendar();
         if (histSelectedDays.length) {
           await loadHistChart();
           await showDaySummary(histSelectedDays[0]);
@@ -2146,6 +2407,143 @@
 
   document.getElementById('btnHistorial').addEventListener('click', toggleHistPanel);
   document.getElementById('btnPatron').addEventListener('click', togglePatronPanel);
+
+  let outlookOpen = false;
+
+  function outlookDate() {
+    if (histSelectedDays.length) return histSelectedDays[0];
+    return todayARTString();
+  }
+
+  function renderOutlook(data) {
+    const el = document.getElementById('outlookBody');
+    if (!data?.configured && !data?.found) {
+      el.innerHTML = '<div class="insights-no-data">Falta configurar OPENAI_API_KEY en el .env local (y en Render). Sin eso no se puede generar el análisis.</div>';
+      return;
+    }
+    if (!data?.found || !data.analysis) {
+      el.innerHTML = `<div class="insights-no-data">Todavía no hay análisis para ${formatStoredDay(data.date || outlookDate())}. Tocá <strong>Generar ahora</strong>. A las 15:30 ART se genera solo.</div><div id="outlookHistory"></div>`;
+      loadOutlookHistory();
+      return;
+    }
+    const a = data.analysis;
+    const biasLabel = { alcista: 'Alcista (TC sube)', bajista: 'Bajista (TC baja)', lateral: 'Lateral' };
+    const drivers = (a.drivers || []).map(d =>
+      `<span class="outlook-chip ${d.effect || ''}">${escHtml(d.factor)}${d.note ? ': ' + escHtml(d.note) : ''}</span>`
+    ).join('');
+    const risks = (a.risks || []).map(r => `<li>${escHtml(r)}</li>`).join('');
+    const verdictLabel = { acierto: 'Acierto', parcial: 'Parcial', error: 'No acertó', pendiente: 'Pendiente' };
+    const scoreBits = [];
+    if (data.score?.today) {
+      const t = data.score.today;
+      scoreBits.push(`<span class="outlook-verdict ${t.verdict}">Hoy: ${verdictLabel[t.verdict] || t.verdict}${t.actual ? ` · fue ${t.actual}` : ''}${t.changePct != null ? ` (${t.changePct > 0 ? '+' : ''}${t.changePct}%)` : ''}</span>`);
+    }
+    if (data.score?.nextDays) {
+      const n = data.score.nextDays;
+      scoreBits.push(`<span class="outlook-verdict ${n.verdict}">Próx. días: ${verdictLabel[n.verdict] || n.verdict}${n.actual ? ` · fue ${n.actual}` : ''}${n.evaluatedDate ? ` · al ${formatStoredDay(n.evaluatedDate)}` : ''}</span>`);
+    }
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;flex-wrap:wrap">
+        <span class="outlook-bias ${a.todayBias || 'lateral'}">${biasLabel[a.todayBias] || a.todayBias}</span>
+        <span class="outlook-meta">${formatStoredDay(data.date)} · confianza ${a.confidence ?? '—'}%</span>
+      </div>
+      ${scoreBits.length ? `<div class="outlook-score-row">${scoreBits.join('')}</div>` : ''}
+      <div class="outlook-grid">
+        <div class="outlook-box"><h4>Hoy</h4><p>${escHtml(a.todaySummary || '—')}</p></div>
+        <div class="outlook-box"><h4>Próximos días (${escHtml(a.nextDays?.horizon || '2-5 ruedas')})</h4>
+          <p><span class="outlook-bias ${a.nextDays?.bias || 'lateral'}">${biasLabel[a.nextDays?.bias] || a.nextDays?.bias || ''}</span></p>
+          <p style="margin-top:.35rem">${escHtml(a.nextDays?.text || '—')}</p>
+        </div>
+      </div>
+      ${drivers ? `<div class="outlook-drivers">${drivers}</div>` : ''}
+      ${risks ? `<div class="outlook-box" style="margin-top:.45rem"><h4>Riesgos</h4><ul style="margin-left:1rem;font-size:.75rem;color:var(--text)">${risks}</ul></div>` : ''}
+      <div class="outlook-disclaimer">${escHtml(a.disclaimer || '')}</div>
+      <div id="outlookHistory"></div>
+    `;
+    loadOutlookHistory();
+  }
+
+  async function loadOutlookHistory() {
+    const host = document.getElementById('outlookHistory');
+    if (!host) return;
+    try {
+      const res = await fetch('/api/tc-outlook/history', { cache: 'no-store' });
+      const data = await res.json();
+      if (!data.ok || !data.days?.length) {
+        host.innerHTML = '<div class="outlook-stats">El historial de aciertos se arma a medida que haya más ruedas después de cada análisis.</div>';
+        return;
+      }
+      const vLabel = { acierto: 'Acierto', parcial: 'Parcial', error: 'Error', pendiente: 'Pendiente' };
+      const rows = data.days.map(d => `
+        <tr>
+          <td>${formatStoredDay(d.date)}</td>
+          <td>${d.todayBias || '—'}</td>
+          <td><span class="outlook-verdict ${d.score?.today?.verdict || 'pendiente'}">${vLabel[d.score?.today?.verdict] || 'Pendiente'}</span></td>
+          <td>${d.nextBias || '—'}</td>
+          <td><span class="outlook-verdict ${d.score?.nextDays?.verdict || 'pendiente'}">${vLabel[d.score?.nextDays?.verdict] || 'Pendiente'}</span></td>
+        </tr>`).join('');
+      const st = data.stats || {};
+      host.innerHTML = `
+        <div class="outlook-box" style="margin-top:.7rem">
+          <h4>Historial de aciertos</h4>
+          <div class="outlook-stats">
+            Hoy: ${st.todayPct != null ? st.todayPct + '% acierto' : 'aún sin ruedas cerradas'}
+            · Próximos días: ${st.nextDaysPct != null ? st.nextDaysPct + '% acierto' : 'pendiente (hacen falta ≥2 ruedas)'}
+          </div>
+          <table class="outlook-hist-table">
+            <thead><tr><th>Fecha</th><th>Sesgo hoy</th><th>Resultado</th><th>Sesgo 2-5d</th><th>Resultado</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="outlook-stats">Acierto = misma dirección · Parcial = uno lateral · Error = dirección opuesta. Variación &lt; 0,15% cuenta como lateral.</div>
+        </div>`;
+    } catch {
+      host.innerHTML = '';
+    }
+  }
+
+  async function loadOutlook() {
+    const el = document.getElementById('outlookBody');
+    el.innerHTML = '<span class="hist-loading">Cargando análisis...</span>';
+    try {
+      const date = outlookDate();
+      const res = await fetch(`/api/tc-outlook?date=${date}`, { cache: 'no-store' });
+      const data = await res.json();
+      renderOutlook(data);
+    } catch {
+      el.innerHTML = '<div class="insights-no-data">No se pudo cargar el análisis.</div>';
+    }
+  }
+
+  async function runOutlook() {
+    const el = document.getElementById('outlookBody');
+    el.innerHTML = '<span class="hist-loading">Consultando OpenAI (puede tardar unos segundos)...</span>';
+    try {
+      const res = await fetch('/api/tc-outlook/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: outlookDate(), force: true }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        el.innerHTML = `<div class="insights-no-data">${escHtml(data.error || 'No se pudo generar')}</div>`;
+        return;
+      }
+      renderOutlook({ ...data, found: true, configured: true });
+      loadOutlookHistory();
+    } catch {
+      el.innerHTML = '<div class="insights-no-data">Error al generar el análisis.</div>';
+    }
+  }
+
+  function toggleOutlookPanel() {
+    outlookOpen = !outlookOpen;
+    document.getElementById('btnOutlook').classList.toggle('active', outlookOpen);
+    document.getElementById('outlookPanel').style.display = outlookOpen ? 'block' : 'none';
+    if (outlookOpen) loadOutlook();
+  }
+
+  document.getElementById('btnOutlook').addEventListener('click', toggleOutlookPanel);
+  document.getElementById('btnOutlookRun').addEventListener('click', runOutlook);
 
   // ── Fetch Noticias ──
   async function fetchNews() {

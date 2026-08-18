@@ -41,6 +41,28 @@ function todayART() {
   return art.toISOString().slice(0, 10);
 }
 
+function dateARTFromTs(iso) {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return null;
+  return new Date(t.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function pointBelongsToDate(point, dateStr) {
+  return dateARTFromTs(point?.ts) === dateStr;
+}
+
+function filterIsolatedSpikes(points) {
+  if (!Array.isArray(points) || points.length < 3) return points || [];
+  return points.filter((p, i) => {
+    const prev = points[i - 1];
+    const next = points[i + 1];
+    if (!prev || !next) return true;
+    const drop = prev.venta - p.venta;
+    const rebound = next.venta - p.venta;
+    return !(drop >= 3 && rebound >= 3);
+  });
+}
+
 function getHistoryStartDate() {
   return process.env.TC_HISTORY_START_DATE || todayART();
 }
@@ -60,11 +82,12 @@ function normalizePoint(raw) {
   return { ts, venta, compra: Number(raw?.compra) || venta };
 }
 
-function mergePoints(existing, incoming) {
+function mergePoints(existing, incoming, dateStr = null) {
   const map = new Map();
   for (const p of [...(existing || []), ...(incoming || [])]) {
     const norm = normalizePoint(p);
     if (!norm) continue;
+    if (dateStr && !pointBelongsToDate(norm, dateStr)) continue;
     map.set(norm.ts, norm);
   }
   return [...map.values()].sort((a, b) => a.ts.localeCompare(b.ts));
@@ -206,21 +229,24 @@ function saveLocalDay(dateStr, points) {
  * Registra un punto de la rueda (solo fechas >= inicio del historial).
  */
 async function addPoint(venta, compra, ts = new Date().toISOString()) {
-  const dateStr = todayART();
-  if (!isOnOrAfterStart(dateStr)) return { saved: false, reason: 'before-start' };
-
   const point = normalizePoint({ ts, venta, compra });
   if (!point) return { saved: false, reason: 'invalid-point' };
 
+  const dateStr = dateARTFromTs(point.ts) || todayART();
+  if (!isOnOrAfterStart(dateStr)) return { saved: false, reason: 'before-start' };
+  if (dateStr !== todayART()) return { saved: false, reason: 'not-today' };
+
   return withStorage(async () => {
     const current = await getSupabaseDay(dateStr);
-    const merged = mergePoints(current?.points, [point]);
-    await upsertSupabaseDay(dateStr, merged);
+    const merged = mergePoints(current?.points, [point], dateStr);
+    const cleaned = filterIsolatedSpikes(merged);
+    await upsertSupabaseDay(dateStr, cleaned);
     return { saved: true, date: dateStr, pointCount: merged.length, storage: 'supabase' };
   }, () => {
     const current = getLocalDay(dateStr);
-    const merged = mergePoints(current.points, [point]);
-    saveLocalDay(dateStr, merged);
+    const merged = mergePoints(current.points, [point], dateStr);
+    const cleaned = filterIsolatedSpikes(merged);
+    saveLocalDay(dateStr, cleaned);
     return { saved: true, date: dateStr, pointCount: merged.length, storage: 'local-file' };
   });
 }
@@ -230,19 +256,24 @@ async function getDay(dateStr) {
     return { date: dateStr, points: [], pointCount: 0, allowed: false };
   }
 
-  return withStorage(async () => {
-    const row = await getSupabaseDay(dateStr);
+  const wrap = (row, storage) => {
+    const points = filterIsolatedSpikes(mergePoints(row?.points || [], [], dateStr));
     return {
       date: dateStr,
-      points: row?.points || [],
-      pointCount: row?.pointCount || 0,
+      points,
+      pointCount: points.length,
       updatedAt: row?.updatedAt || null,
-      storage: 'supabase',
+      storage,
       allowed: true,
     };
+  };
+
+  return withStorage(async () => {
+    const row = await getSupabaseDay(dateStr);
+    return wrap(row, 'supabase');
   }, () => {
     const local = getLocalDay(dateStr);
-    return { ...local, storage: 'local-file', allowed: true };
+    return wrap(local, 'local-file');
   });
 }
 
@@ -345,10 +376,42 @@ async function getDaySummary(dateStr) {
 
   let cierreAnterior = null;
   try {
-    const cierreStore = require('./mayoristaCierreStore');
-    const ant = cierreStore.getCierreAnterior();
-    if (ant.cierreValor != null) cierreAnterior = ant;
-  } catch { /* opcional */ }
+    const weekendOrHoliday = (d) => {
+      const [y, m, dayNum] = d.split('-').map(Number);
+      const dow = new Date(y, m - 1, dayNum).getDay();
+      if (dow === 0 || dow === 6) return true;
+      const holidays = new Set([
+        '2026-01-01', '2026-02-16', '2026-02-17', '2026-03-24', '2026-04-02',
+        '2026-04-03', '2026-05-01', '2026-05-25', '2026-06-15', '2026-06-20',
+        '2026-07-09', '2026-08-17', '2026-10-12', '2026-11-20', '2026-12-08',
+        '2026-12-25',
+      ]);
+      return holidays.has(d);
+    };
+    const index = await listDays();
+    const prevDates = (index.days || [])
+      .map(d => d.date)
+      .filter(d => d < dateStr && !weekendOrHoliday(d))
+      .sort()
+      .reverse();
+
+    for (const prev of prevDates) {
+      const prevDay = await getDay(prev);
+      const prevSummary = computeDaySummary(prevDay.points);
+      if (prevSummary?.close != null) {
+        cierreAnterior = { cierreValor: prevSummary.close, cierreFecha: prev };
+        break;
+      }
+    }
+  } catch { /* sin historial previo */ }
+
+  if (!cierreAnterior) {
+    try {
+      const cierreStore = require('./mayoristaCierreStore');
+      const ant = cierreStore.getCierreAnterior(dateStr);
+      if (ant.cierreValor != null && ant.cierreFecha) cierreAnterior = ant;
+    } catch { /* opcional */ }
+  }
 
   return { date: dateStr, ...summary, cierreAnterior };
 }

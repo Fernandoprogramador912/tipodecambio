@@ -50,7 +50,7 @@ function pulseFromA3() {
     if (ult?.price == null) {
       return { recorded: false, reason: 'no-price' };
     }
-    if (ult._fromClose && !ult._stale) {
+    if (ult._fromClose) {
       return { recorded: false, reason: 'cierre-only' };
     }
     const recorded = maybeRecordTick(ult.price, ult.asOf);

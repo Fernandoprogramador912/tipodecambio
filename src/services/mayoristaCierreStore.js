@@ -68,13 +68,14 @@ function recordClose(dateRaw, price) {
 }
 
 /**
- * Cierre a mostrar en UI: última fecha guardada estrictamente anterior a hoy (ART).
- * Así, si A3 ya mandó el cierre de hoy, no reemplaza al de ayer hasta pasar 00:00.
+ * Cierre a mostrar: última fecha guardada estrictamente anterior a `beforeDate`
+ * (por defecto: hoy ART). Así, si A3 ya mandó el cierre de hoy, no reemplaza
+ * al de ayer hasta pasar 00:00.
  */
-function getCierreAnterior() {
-  const today = todayART();
+function getCierreAnterior(beforeDate) {
+  const cutoff = normalizeDate(beforeDate) || todayART();
   const days = getDays();
-  const prevDates = Object.keys(days).filter(d => d < today).sort();
+  const prevDates = Object.keys(days).filter(d => d < cutoff).sort();
   if (!prevDates.length) {
     return { cierreValor: null, cierreFecha: null };
   }

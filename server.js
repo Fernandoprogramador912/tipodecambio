@@ -21,6 +21,7 @@ const wsProvider = require('./src/providers/wsProvider');
 const tcIntradayHistory = require('./src/services/tcIntradayHistoryService');
 const { getCierreAnterior } = require('./src/services/mayoristaCierreStore');
 const newsArchive = require('./src/services/newsArchiveService');
+const tcOutlook = require('./src/services/tcOutlookService');
 const { startTcIntradayRecorder, pulseFromA3 } = require('./src/services/tcIntradayRecorderService');
 
 const app  = express();
@@ -330,6 +331,42 @@ app.post('/api/news-archive/today', async (req, res) => {
   }
 });
 
+// --- API: análisis de escenario TC (OpenAI) ---
+app.get('/api/tc-outlook/history', async (req, res) => {
+  try {
+    const result = await tcOutlook.getOutlookHistory();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/tc-outlook', async (req, res) => {
+  try {
+    const date = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+      ? req.query.date
+      : tcOutlook.todayART();
+    const result = await tcOutlook.getOutlook(date);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tc-outlook/run', async (req, res) => {
+  try {
+    const date = req.body?.date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date)
+      ? req.body.date
+      : tcOutlook.todayART();
+    const force = Boolean(req.body?.force);
+    const result = await tcOutlook.generateOutlook(date, { force });
+    const status = result.ok ? 200 : 400;
+    res.status(status).json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // --- API: futuros ---
 app.get('/api/futures', async (req, res) => {
   try {
@@ -367,6 +404,10 @@ function startNewsArchiveCron() {
         const news = await getNews();
         const result = await newsArchive.archiveToday(news.items || []);
         console.log(`[news-archive] ${result.archived ? `${result.count} noticias archivadas (${result.storage})` : result.reason}`);
+        if (tcOutlook.hasOpenAI()) {
+          const outlook = await tcOutlook.generateOutlook(today, { force: true });
+          console.log(`[tc-outlook] ${outlook.ok ? `análisis ${today} (${outlook.storage})` : outlook.error}`);
+        }
       } catch (err) {
         console.warn('[news-archive] Error en cron:', err.message);
       }
@@ -386,7 +427,8 @@ if (require.main === module) {
       console.log('  Gráfico intradiario: registro automático en servidor (10:00–15:00 ART)');
     }
     startNewsArchiveCron();
-    console.log('  Archivo de noticias: cron activo (15:30 ART)\n');
+    console.log('  Archivo de noticias: cron activo (15:30 ART)');
+    console.log(`  Análisis OpenAI: ${tcOutlook.hasOpenAI() ? 'activo' : 'sin OPENAI_API_KEY'}\n`);
   });
 }
 
