@@ -419,26 +419,43 @@ async function getDaySummary(dateStr) {
 /**
  * Calcula estadísticas por franja horaria en los últimos N días.
  * Útil para saber a qué hora históricamente el TC estuvo más bajo.
+ *
+ * opts.until — fecha inclusive (YYYY-MM-DD): ventana hacia atrás desde ese día
+ *              (por defecto: hoy ART). Así el patrón cambia con el calendario.
  */
 async function getInsights(opts = {}) {
   const maxDays = Math.min(Number(opts.days) || 20, 60);
+  const until = isValidDateStr(opts.until) ? opts.until : todayART();
   const SLOT_MIN = 5;
   const SLOTS_TOTAL = (5 * 60) / SLOT_MIN + 1; // 61 slots 10:00–15:00
 
   const index = await listDays();
-  const recentDays = (index.days || []).slice(0, maxDays);
+  // listDays viene ordenado desc; filtramos <= until y tomamos los N más recientes
+  const recentDays = (index.days || [])
+    .filter(d => d.date <= until)
+    .slice(0, maxDays);
 
   if (!recentDays.length) {
-    return { daysAnalyzed: 0, slots: [], bestWindows: [], message: 'Sin datos históricos aún' };
+    return {
+      daysAnalyzed: 0,
+      slots: [],
+      bestWindows: [],
+      until,
+      from: null,
+      windowDays: maxDays,
+      message: 'Sin datos históricos aún para esa fecha',
+    };
   }
 
   const slotMatrix = {}; // slotIdx → [price]
   let daysWithData = 0;
+  const analyzedDates = [];
 
   for (const d of recentDays) {
     const dayData = await getDay(d.date);
     if (!dayData.points.length) continue;
     daysWithData++;
+    analyzedDates.push(d.date);
     for (const p of dayData.points) {
       const norm = normalizePoint(p);
       if (!norm) continue;
@@ -481,7 +498,17 @@ async function getInsights(opts = {}) {
     .slice(0, 6)
     .map(s => ({ time: s.time, avg: s.avg, relDevPct: s.relDevPct }));
 
-  return { daysAnalyzed: daysWithData, globalAvg, slots, bestWindows };
+  const sortedAnalyzed = [...analyzedDates].sort();
+  return {
+    daysAnalyzed: daysWithData,
+    globalAvg,
+    slots,
+    bestWindows,
+    until,
+    from: sortedAnalyzed[0] || null,
+    to: sortedAnalyzed[sortedAnalyzed.length - 1] || null,
+    windowDays: maxDays,
+  };
 }
 
 module.exports = {

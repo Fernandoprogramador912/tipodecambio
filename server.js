@@ -216,7 +216,11 @@ app.get('/api/tc-history', async (req, res) => {
 app.get('/api/tc-history/insights', async (req, res) => {
   try {
     const days = req.query.days ? Number(req.query.days) : 20;
-    const result = await tcIntradayHistory.getInsights({ days });
+    const until = typeof req.query.until === 'string' ? req.query.until : undefined;
+    if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+      return res.status(400).json({ ok: false, error: 'until inválido (YYYY-MM-DD)' });
+    }
+    const result = await tcIntradayHistory.getInsights({ days, until });
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

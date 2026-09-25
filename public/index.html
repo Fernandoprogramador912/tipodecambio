@@ -2340,6 +2340,7 @@
     renderCalendar();
     await loadHistChart();
     if (histSelectedDays.length > 0) await showDaySummary(histSelectedDays[0]);
+    if (histInsightsOpen) await loadInsights();
     if (outlookOpen) await loadOutlook();
   }
 
@@ -2432,16 +2433,21 @@
     const panel = document.getElementById('histInsights');
     btn.classList.toggle('active', histInsightsOpen);
     panel.style.display = histInsightsOpen ? 'block' : 'none';
-    if (histInsightsOpen && !histInsightsCache) await loadInsights();
+    if (histInsightsOpen) await loadInsights();
+  }
+
+  function insightsUntilDate() {
+    return histSelectedDays[0] || todayARTString();
   }
 
   async function loadInsights() {
     const el = document.getElementById('histInsights');
-    el.innerHTML = '<span class="hist-loading">Calculando patrón horario...</span>';
+    const until = insightsUntilDate();
+    el.innerHTML = `<span class="hist-loading">Calculando patrón horario hasta ${formatStoredDay(until)}...</span>`;
     try {
-      const res = await fetch('/api/tc-history/insights?days=30', { cache: 'no-store' });
+      const res = await fetch(`/api/tc-history/insights?days=30&until=${encodeURIComponent(until)}`, { cache: 'no-store' });
       const data = await res.json();
-      histInsightsCache = data;
+      histInsightsCache = { until, data };
       renderInsights(data);
     } catch {
       el.innerHTML = '<span class="hist-loading">No se pudieron cargar los datos.</span>';
@@ -2451,7 +2457,7 @@
   function renderInsights(data) {
     const el = document.getElementById('histInsights');
     if (!data.ok || data.daysAnalyzed < 2) {
-      el.innerHTML = `<div class="insights-no-data">Se necesitan al menos 2 días de datos para mostrar el patrón horario. Actualmente: ${data.daysAnalyzed ?? 0} día(s).</div>`;
+      el.innerHTML = `<div class="insights-no-data">Se necesitan al menos 2 días de datos para mostrar el patrón horario. Actualmente: ${data.daysAnalyzed ?? 0} día(s)${data.until ? ` (hasta ${formatStoredDay(data.until)})` : ''}.</div>`;
       return;
     }
 
@@ -2468,7 +2474,6 @@
         return `<div class="insights-slot"><span class="insights-slot-time">${s.time}</span><span class="insights-slot-dev" style="color:var(--muted)">—</span><div class="insights-slot-bar"></div></div>`;
       }
       const dev = s.relDev || 0;
-      const devPct = s.relDevPct || 0;
       const cls = dev <= -0.5 ? 'cheap' : dev >= 0.5 ? 'expensive' : 'mid';
       const sign = dev > 0 ? '+' : '';
       const barW = maxAbsDev > 0 ? Math.round(Math.abs(dev) / maxAbsDev * 100) : 0;
@@ -2480,12 +2485,17 @@
       `<div class="insights-best-item">${w.time} <small>(${w.relDevPct > 0 ? '+' : ''}${w.relDevPct?.toFixed(2)}%)</small></div>`
     ).join('');
 
+    const rangeNote = (data.from && data.to)
+      ? `${formatStoredDay(data.from)} → ${formatStoredDay(data.to)}`
+      : (data.until ? `hasta ${formatStoredDay(data.until)}` : '');
+
     el.innerHTML = `
       <div class="hist-insights-title">
         Patrón histórico por franja horaria
-        <span class="hist-insights-note">· ${data.daysAnalyzed} días analizados · desviación vs promedio del período</span>
+        <span class="hist-insights-note">· ${data.daysAnalyzed} días analizados${rangeNote ? ` · ${rangeNote}` : ''} · desviación vs promedio del período</span>
       </div>
       <p style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">
+        Ventana de hasta 30 ruedas hacia atrás desde el día seleccionado en el calendario.
         Verde = históricamente más barato que el promedio · Rojo = más caro · Dato estadístico, no predicción.
       </p>
       <div class="insights-grid">${grid}</div>
