@@ -38,11 +38,11 @@ function setActiveSpotSymbol(symbol) {
   if (symbol) activeSpotSymbol = symbol;
 }
 
-/** Lista para suscripción WS: contrato pinneado + próximos vencimientos. */
+/** Lista para suscripción WS: contrato pinneado + próximos 12 meses. */
 function getWatchList() {
   const mayorista = getMayoristaSymbol();
   const extra = ['DOLAR/MTR'].filter(s => s !== mayorista);
-  const base = nearestContracts(8);
+  const base = nearestContracts(12);
   return [mayorista, ...extra, ...base.filter(s => s !== mayorista && !extra.includes(s))];
 }
 

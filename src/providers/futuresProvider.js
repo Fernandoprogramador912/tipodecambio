@@ -109,23 +109,48 @@ async function fetchContractData(token, symbol) {
   }
 }
 
-async function fetchAvailableContracts(token) {
-  try {
-    const res = await axios.get(`${BASE_URL}/rest/instruments/all`, {
-      headers: { 'X-Auth-Token': token },
-      timeout: 8000,
-    });
-    const all = res.data?.instruments || [];
-    // Solo futuros DLR simples ordenados por vencimiento implícito
-    const dlr = sortDlrContracts(
-      all
-        .filter(i => /^DLR\/[A-Z]{3}\d{2}$/.test(i.instrumentId?.symbol))
-        .map(i => i.instrumentId.symbol)
-    );
-    return dlr.length > 0 ? dlr.slice(0, 8) : nearestContracts(6);
-  } catch {
-    return nearestContracts(6);
-  }
+const FUTURES_MONTHS = 12;
+
+/** Próximos 12 meses calendario (DLR/SEP26 …), sin minis (…M). */
+function listNextDlrMonths() {
+  return nearestContracts(FUTURES_MONTHS);
+}
+
+function contractsFromWsOnly() {
+  return listNextDlrMonths().map(symbol => {
+    const ws = wsProvider.getCachedContract(symbol);
+    if (!ws) {
+      return { symbol, lastPrice: null, bid: null, ask: null, error: 'Sin cotización aún' };
+    }
+    return {
+      symbol,
+      lastPrice: ws.lastPrice ?? null,
+      bid: ws.bid ?? null,
+      ask: ws.ask ?? null,
+      openInterest: ws.openInterest ?? null,
+    };
+  });
+}
+
+function enrichWithWs(contracts) {
+  return contracts.map(c => {
+    const ws = wsProvider.getCachedContract(c.symbol);
+    if (!ws) return c;
+    const wsAge = Date.now() - (ws.updatedAt ?? 0);
+    if (wsAge > 120_000) return c;
+    return {
+      ...c,
+      lastPrice: ws.lastPrice ?? c.lastPrice,
+      bid: ws.bid ?? c.bid,
+      ask: ws.ask ?? c.ask,
+      openInterest: c.openInterest ?? ws.openInterest ?? null,
+      error: (ws.ask != null || ws.bid != null || ws.lastPrice != null) ? null : c.error,
+    };
+  });
+}
+
+async function fetchAvailableContracts(_token) {
+  return listNextDlrMonths();
 }
 
 async function fetchAllFutures() {
@@ -136,14 +161,16 @@ async function fetchAllFutures() {
     contracts.map(s => fetchContractData(token, s))
   );
 
-  return results;
+  return sortDlrContracts(results.map(r => r.symbol)).map(
+    symbol => results.find(r => r.symbol === symbol) || { symbol, lastPrice: null, bid: null, ask: null }
+  );
 }
 
 async function getFutures() {
   if (!ENABLED) {
     return {
       enabled: false,
-      contracts: nearestContracts(6).map(symbol => ({
+      contracts: listNextDlrMonths().map(symbol => ({
         symbol, lastPrice: null, bid: null, ask: null,
         note: 'Activar con ENABLE_FUTURES=true en .env',
         stub: true,
@@ -153,28 +180,33 @@ async function getFutures() {
 
   const now = Date.now();
   if (futuresCache && now - futuresCachedAt < FUTURES_CACHE_TTL_MS) {
-    return { enabled: true, contracts: futuresCache, cached: true };
+    return { enabled: true, contracts: futuresCache, cached: true, source: 'cache' };
   }
 
-  const contracts = await fetchAllFutures();
+  let enriched;
+  let source = 'rest+ws';
+  try {
+    const contracts = await fetchAllFutures();
+    enriched = enrichWithWs(contracts);
+  } catch (err) {
+    console.warn('[futures] REST falló, usando solo WS:', err.message);
+    enriched = contractsFromWsOnly();
+    source = 'ws';
+  }
 
-  // Enriquecer con datos WS si están disponibles (más frescos que REST)
-  const enriched = contracts.map(c => {
-    const ws = wsProvider.getCachedContract(c.symbol);
-    if (!ws) return c;
-    const wsAge = Date.now() - (ws.updatedAt ?? 0);
-    if (wsAge > 60_000) return c; // ignorar si tiene más de 60s
-    return {
-      ...c,
-      lastPrice:    ws.lastPrice ?? c.lastPrice,
-      bid:          ws.bid       ?? c.bid,
-      ask:          ws.ask       ?? c.ask,
-    };
-  });
+  // Si REST devolvió todo vacío pero WS tiene ask, preferir WS
+  const hasAsk = enriched.some(c => c.ask != null);
+  if (!hasAsk) {
+    const fromWs = contractsFromWsOnly();
+    if (fromWs.some(c => c.ask != null || c.bid != null || c.lastPrice != null)) {
+      enriched = fromWs;
+      source = 'ws';
+    }
+  }
 
   futuresCache    = enriched;
   futuresCachedAt = now;
-  return { enabled: true, contracts: enriched, cached: false };
+  return { enabled: true, contracts: enriched, cached: false, source };
 }
 
 /**
