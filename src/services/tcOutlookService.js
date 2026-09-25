@@ -24,6 +24,15 @@ function todayART() {
   return art.toISOString().slice(0, 10);
 }
 
+/** Solo guardamos / listamos análisis desde esta fecha (inclusive). */
+function outlookStartDate() {
+  return process.env.TC_OUTLOOK_START_DATE || todayART();
+}
+
+function isOnOrAfterStart(dateStr) {
+  return Boolean(dateStr && dateStr >= outlookStartDate());
+}
+
 function hasOpenAI() {
   return Boolean(process.env.OPENAI_API_KEY);
 }
@@ -86,6 +95,9 @@ async function getStored(dateStr) {
 }
 
 async function saveStored(dateStr, analysis) {
+  if (!isOnOrAfterStart(dateStr)) {
+    return { date: dateStr, analysis, generatedAt: new Date().toISOString(), storage: 'skipped-before-start' };
+  }
   const generatedAt = new Date().toISOString();
   const payload = { analysis, generatedAt };
 
@@ -380,22 +392,26 @@ function tally(rows) {
 }
 
 async function listStored() {
+  const start = outlookStartDate();
   if (SUPABASE_CONFIGURED) {
     try {
       const rows = await supabaseRequest(
         'get',
-        `${SUPABASE_TABLE}?select=session_date,analysis,generated_at&order=session_date.desc`
+        `${SUPABASE_TABLE}?session_date=gte.${start}&select=session_date,analysis,generated_at&order=session_date.desc`
       );
-      return (rows || []).map(r => ({
-        date: r.session_date,
-        analysis: r.analysis,
-        generatedAt: r.generated_at,
-        storage: 'supabase',
-      }));
-    } catch { /* fallback */ }
+      if (Array.isArray(rows) && rows.length) {
+        return rows.map(r => ({
+          date: r.session_date,
+          analysis: r.analysis,
+          generatedAt: r.generated_at,
+          storage: 'supabase',
+        }));
+      }
+    } catch { /* fallback local */ }
   }
   const store = readFile();
   return Object.keys(store)
+    .filter(isOnOrAfterStart)
     .sort()
     .reverse()
     .map(date => ({ date, analysis: store[date].analysis, generatedAt: store[date].generatedAt, storage: 'local-file' }));
@@ -410,7 +426,10 @@ async function getOutlookHistory() {
       date: row.date,
       generatedAt: row.generatedAt,
       todayBias: row.analysis?.todayBias || null,
+      todaySummary: row.analysis?.todaySummary || null,
       nextBias: row.analysis?.nextDays?.bias || null,
+      nextDaysText: row.analysis?.nextDays?.text || null,
+      nextHorizon: row.analysis?.nextDays?.horizon || null,
       confidence: row.analysis?.confidence ?? null,
       score: await scoreOne(row, sessions),
     });

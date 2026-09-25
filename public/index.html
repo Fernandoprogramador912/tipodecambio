@@ -333,6 +333,11 @@
       flex-direction: column; gap: .5rem;
     }
     .chart-wrapper { position: relative; height: 185px; }
+    .chart-btn-row {
+      display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
+      flex-shrink: 0; margin-top: .65rem; padding-top: .55rem;
+      border-top: 1px solid var(--border);
+    }
     .previous-chart-panel {
       margin-top: .8rem;
       padding-top: .7rem;
@@ -360,11 +365,11 @@
     }
     .chart-action-btn:hover { color: var(--text); border-color: var(--blue); }
     .chart-action-btn.active { color: var(--blue); border-color: var(--blue); background: rgba(88,166,255,.08); }
-    .chart-btn-row { display: flex; gap: .4rem; align-items: center; flex-shrink: 0; }
 
     .hist-panel {
       border-top: 1px solid var(--border);
       padding: .7rem 0 .3rem;
+      margin-top: .35rem;
       margin-bottom: .5rem;
     }
     .hist-empty { font-size: .72rem; color: var(--muted); }
@@ -541,16 +546,45 @@
     }
     .outlook-head {
       display: flex; align-items: center; justify-content: space-between;
-      gap: .5rem; flex-wrap: wrap; margin-bottom: .45rem;
+      gap: .5rem; flex-wrap: wrap; margin-bottom: .55rem;
     }
     .outlook-title { font: 700 .78rem var(--font); color: var(--text); }
+    .outlook-title-sub { font-size: .68rem; color: var(--muted); font-weight: 400; margin-top: .12rem; }
+    .outlook-hero {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface2);
+      padding: .75rem .85rem .7rem;
+      margin-bottom: .55rem;
+    }
+    .outlook-hero-kicker {
+      font-size: .65rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem;
+    }
+    .outlook-hero-row {
+      display: flex; align-items: center; gap: .65rem; flex-wrap: wrap;
+      margin-bottom: .45rem;
+    }
+    .outlook-hero-date {
+      font: 800 1.15rem var(--font-display, var(--font));
+      color: var(--text); letter-spacing: .01em;
+    }
     .outlook-bias {
-      font: 700 .68rem var(--font); padding: .18rem .5rem; border-radius: 999px;
+      font: 700 .72rem var(--font); padding: .22rem .6rem; border-radius: 999px;
       text-transform: uppercase; letter-spacing: .03em;
+    }
+    .outlook-bias.lg {
+      font-size: .85rem; padding: .3rem .75rem;
     }
     .outlook-bias.alcista { color: var(--red); background: rgba(248,81,73,.12); }
     .outlook-bias.bajista { color: var(--green); background: rgba(63,185,80,.12); }
     .outlook-bias.lateral { color: var(--yellow); background: rgba(210,153,34,.12); }
+    .outlook-hero-summary {
+      font-size: .88rem; line-height: 1.45; color: var(--text); margin: 0;
+    }
+    .outlook-hero-meta {
+      font-size: .65rem; color: var(--muted); margin-top: .4rem;
+    }
     .outlook-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: .55rem;
     }
@@ -592,6 +626,33 @@
     }
     .outlook-hist-table th { color: var(--muted); font-weight: 600; font-size: .62rem; text-transform: uppercase; }
     .outlook-stats { font-size: .7rem; color: var(--muted); margin-top: .35rem; }
+    .outlook-hist-compact {
+      display: flex; flex-direction: column; gap: 0;
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .outlook-hist-row {
+      display: grid;
+      grid-template-columns: 4.6rem 5.8rem 4.6rem 1fr;
+      gap: .45rem; align-items: center;
+      padding: .42rem .6rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; background: var(--surface2);
+      transition: background .12s;
+    }
+    .outlook-hist-row:last-child { border-bottom: none; }
+    .outlook-hist-row:hover { background: var(--surface); }
+    .outlook-hist-row .h-date { font: 700 .72rem var(--font); color: var(--text); }
+    .outlook-hist-row .h-snip {
+      font-size: .68rem; color: var(--muted); line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
+    @media (max-width: 720px) {
+      .outlook-hist-row {
+        grid-template-columns: 4.2rem 1fr auto;
+        grid-template-rows: auto auto;
+      }
+      .outlook-hist-row .h-snip { grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    }
     .previous-chart-empty {
       height: 76px;
       display: flex; align-items: center; justify-content: center;
@@ -1204,11 +1265,25 @@
             <div class="chart-title" id="chartTitle">USD/ARS Mayorista — hoy</div>
             <div class="chart-subtitle" id="chartSubtitle">Actualizando...</div>
           </div>
-          <div class="chart-btn-row">
-            <button class="chart-action-btn" id="btnHistorial">Historial</button>
-            <button class="chart-action-btn" id="btnPatron" style="display:none">Patrón</button>
-            <button class="chart-action-btn" id="btnOutlook">Análisis</button>
+        </div>
+
+        <div id="chartContainer">
+          <div class="chart-no-data" id="chartNoData">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>El gráfico se construye durante la rueda (10:00–15:00 hs)</span>
           </div>
+          <div class="chart-wrapper" id="chartWrapper" style="display:none">
+            <canvas id="fxChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-btn-row">
+          <button class="chart-action-btn" id="btnHistorial">Historial</button>
+          <button class="chart-action-btn" id="btnPatron" style="display:none">Patrón</button>
+          <button class="chart-action-btn" id="btnOutlook">Análisis</button>
+          <button class="chart-action-btn" id="btnOutlookHist">Hist. análisis</button>
         </div>
 
         <!-- Panel historial -->
@@ -1223,22 +1298,23 @@
 
         <div id="outlookPanel" class="outlook-panel" style="display:none">
           <div class="outlook-head">
-            <div class="outlook-title">Escenario TC · IA</div>
-            <button class="chart-action-btn" id="btnOutlookRun">Generar ahora</button>
+            <div>
+              <div class="outlook-title" id="outlookPanelTitle">Análisis estimado de hoy</div>
+              <div class="outlook-title-sub" id="outlookPanelSub">Sesgo esperado para la rueda mayorista</div>
+            </div>
+            <button class="chart-action-btn" id="btnOutlookRun">Actualizar análisis</button>
           </div>
           <div id="outlookBody"><span class="hist-loading">Cargando análisis...</span></div>
         </div>
 
-        <div id="chartContainer">
-          <div class="chart-no-data" id="chartNoData">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            <span>El gráfico se construye durante la rueda (10:00–15:00 hs)</span>
+        <div id="outlookHistPanel" class="outlook-panel" style="display:none">
+          <div class="outlook-head">
+            <div>
+              <div class="outlook-title">Historial de análisis</div>
+              <div class="outlook-title-sub">Lista resumida · tocá un día para ver el detalle completo</div>
+            </div>
           </div>
-          <div class="chart-wrapper" id="chartWrapper" style="display:none">
-            <canvas id="fxChart"></canvas>
-          </div>
+          <div id="outlookHistBody"><span class="hist-loading">Cargando historial...</span></div>
         </div>
       </div>
 
@@ -2321,6 +2397,10 @@
     const btn = document.getElementById('btnHistorial');
     const panel = document.getElementById('histPanel');
     const btnP = document.getElementById('btnPatron');
+    if (histOpen) {
+      closeOutlookPanel();
+      closeOutlookHistPanel();
+    }
     btn.classList.toggle('active', histOpen);
     panel.style.display = histOpen ? 'block' : 'none';
     btnP.style.display = histOpen ? 'inline-flex' : 'none';
@@ -2417,21 +2497,41 @@
   document.getElementById('btnPatron').addEventListener('click', togglePatronPanel);
 
   let outlookOpen = false;
+  let outlookHistOpen = false;
+  let outlookViewDate = null;
 
+  /** El análisis principal siempre es el del día de hoy (ART), no el del calendario. */
   function outlookDate() {
-    if (histSelectedDays.length) return histSelectedDays[0];
     return todayARTString();
+  }
+
+  function updateOutlookHeader(dateStr) {
+    const title = document.getElementById('outlookPanelTitle');
+    const sub = document.getElementById('outlookPanelSub');
+    if (title) title.textContent = `Análisis estimado · ${formatStoredDay(dateStr)}`;
+    if (sub) sub.textContent = 'Sesgo esperado para la rueda mayorista de hoy (10:00–15:00 ART)';
   }
 
   function renderOutlook(data) {
     const el = document.getElementById('outlookBody');
+    const dateStr = data.date || outlookDate();
+    updateOutlookHeader(dateStr);
+
     if (!data?.configured && !data?.found) {
       el.innerHTML = '<div class="insights-no-data">Falta configurar OPENAI_API_KEY en el .env local (y en Render). Sin eso no se puede generar el análisis.</div>';
       return;
     }
     if (!data?.found || !data.analysis) {
-      el.innerHTML = `<div class="insights-no-data">Todavía no hay análisis para ${formatStoredDay(data.date || outlookDate())}. Tocá <strong>Generar ahora</strong>. A las 15:30 ART se genera solo.</div><div id="outlookHistory"></div>`;
-      loadOutlookHistory();
+      el.innerHTML = `
+        <div class="outlook-hero">
+          <div class="outlook-hero-kicker">Estimación del día</div>
+          <div class="outlook-hero-row">
+            <span class="outlook-hero-date">${formatStoredDay(dateStr)}</span>
+            <span class="outlook-bias lateral">Sin análisis aún</span>
+          </div>
+          <p class="outlook-hero-summary">Todavía no hay un análisis estimado para hoy. Tocá <strong>Actualizar análisis</strong> para generar el de esta rueda.</p>
+          <div class="outlook-hero-meta">También se genera solo a las 15:30 ART.</div>
+        </div>`;
       return;
     }
     const a = data.analysis;
@@ -2450,14 +2550,24 @@
       const n = data.score.nextDays;
       scoreBits.push(`<span class="outlook-verdict ${n.verdict}">Próx. días: ${verdictLabel[n.verdict] || n.verdict}${n.actual ? ` · fue ${n.actual}` : ''}${n.evaluatedDate ? ` · al ${formatStoredDay(n.evaluatedDate)}` : ''}</span>`);
     }
+    const genAt = data.generatedAt
+      ? new Date(data.generatedAt).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : null;
     el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;flex-wrap:wrap">
-        <span class="outlook-bias ${a.todayBias || 'lateral'}">${biasLabel[a.todayBias] || a.todayBias}</span>
-        <span class="outlook-meta">${formatStoredDay(data.date)} · confianza ${a.confidence ?? '—'}%</span>
+      <div class="outlook-hero">
+        <div class="outlook-hero-kicker">Análisis estimado para hoy</div>
+        <div class="outlook-hero-row">
+          <span class="outlook-hero-date">${formatStoredDay(dateStr)}</span>
+          <span class="outlook-bias lg ${a.todayBias || 'lateral'}">${biasLabel[a.todayBias] || a.todayBias}</span>
+        </div>
+        <p class="outlook-hero-summary">${escHtml(a.todaySummary || '—')}</p>
+        <div class="outlook-hero-meta">Confianza ${a.confidence ?? '—'}%${genAt ? ` · generado ${genAt}` : ''}</div>
       </div>
       ${scoreBits.length ? `<div class="outlook-score-row">${scoreBits.join('')}</div>` : ''}
       <div class="outlook-grid">
-        <div class="outlook-box"><h4>Hoy</h4><p>${escHtml(a.todaySummary || '—')}</p></div>
+        <div class="outlook-box"><h4>Factores clave de hoy</h4>
+          ${drivers ? `<div class="outlook-drivers" style="margin-top:0">${drivers}</div>` : '<p>Sin factores destacados.</p>'}
+        </div>
         <div class="outlook-box"><h4>Próximos días (${escHtml(a.nextDays?.horizon || '2-5 ruedas')})</h4>
           <p><span class="outlook-bias ${a.nextDays?.bias || 'lateral'}">${biasLabel[a.nextDays?.bias] || a.nextDays?.bias || ''}</span></p>
           <p style="margin-top:.35rem">${escHtml(a.nextDays?.text || '—')}</p>
@@ -2470,60 +2580,117 @@
           <span class="outlook-bias ${s.thenBias || 'lateral'}">${biasLabel[s.thenBias] || s.thenBias || ''}</span>
           <div class="then-txt" style="margin-top:.3rem">${escHtml(s.then || '')}</div>
         </div>`).join('')}</div></div>` : ''}
-      ${drivers ? `<div class="outlook-drivers">${drivers}</div>` : ''}
       ${risks ? `<div class="outlook-box" style="margin-top:.45rem"><h4>Riesgos</h4><ul style="margin-left:1rem;font-size:.75rem;color:var(--text)">${risks}</ul></div>` : ''}
       <div class="outlook-disclaimer">${escHtml(a.disclaimer || '')}</div>
-      <div id="outlookHistory"></div>
     `;
-    loadOutlookHistory();
   }
 
-  async function loadOutlookHistory() {
-    const host = document.getElementById('outlookHistory');
+  function snippetText(text, max = 90) {
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return 'Sin resumen';
+    return t.length > max ? t.slice(0, max - 1) + '…' : t;
+  }
+
+  async function loadOutlookHistoryList() {
+    const host = document.getElementById('outlookHistBody');
     if (!host) return;
+    host.innerHTML = '<span class="hist-loading">Cargando historial...</span>';
     try {
       const res = await fetch('/api/tc-outlook/history', { cache: 'no-store' });
       const data = await res.json();
       if (!data.ok || !data.days?.length) {
-        host.innerHTML = '<div class="outlook-stats">El historial de aciertos se arma a medida que haya más ruedas después de cada análisis.</div>';
+        host.innerHTML = '<div class="outlook-stats">Todavía no hay análisis guardados.</div>';
         return;
       }
+      const biasShort = { alcista: 'Alcista', bajista: 'Bajista', lateral: 'Lateral' };
       const vLabel = { acierto: 'Acierto', parcial: 'Parcial', error: 'Error', pendiente: 'Pendiente' };
-      const rows = data.days.map(d => `
-        <tr>
-          <td>${formatStoredDay(d.date)}</td>
-          <td>${d.todayBias || '—'}</td>
-          <td><span class="outlook-verdict ${d.score?.today?.verdict || 'pendiente'}">${vLabel[d.score?.today?.verdict] || 'Pendiente'}</span></td>
-          <td>${d.nextBias || '—'}</td>
-          <td><span class="outlook-verdict ${d.score?.nextDays?.verdict || 'pendiente'}">${vLabel[d.score?.nextDays?.verdict] || 'Pendiente'}</span></td>
-        </tr>`).join('');
       const st = data.stats || {};
+      const rows = data.days.map(d => {
+        const v = d.score?.today?.verdict || 'pendiente';
+        return `
+          <div class="outlook-hist-row" data-outlook-date="${d.date}" role="button" tabindex="0" title="Ver análisis completo">
+            <span class="h-date">${formatStoredDay(d.date)}</span>
+            <span class="outlook-bias ${d.todayBias || 'lateral'}">${biasShort[d.todayBias] || d.todayBias || '—'}</span>
+            <span class="outlook-verdict ${v}">${vLabel[v] || 'Pendiente'}</span>
+            <span class="h-snip">${escHtml(snippetText(d.todaySummary))}</span>
+          </div>`;
+      }).join('');
       host.innerHTML = `
-        <div class="outlook-box" style="margin-top:.7rem">
-          <h4>Historial de aciertos</h4>
-          <div class="outlook-stats">
-            Hoy: ${st.todayPct != null ? st.todayPct + '% acierto' : 'aún sin ruedas cerradas'}
-            · Próximos días: ${st.nextDaysPct != null ? st.nextDaysPct + '% acierto' : 'pendiente (hacen falta ≥2 ruedas)'}
-          </div>
-          <table class="outlook-hist-table">
-            <thead><tr><th>Fecha</th><th>Sesgo hoy</th><th>Resultado</th><th>Sesgo 2-5d</th><th>Resultado</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div class="outlook-stats">Acierto = misma dirección · Parcial = uno lateral · Error = dirección opuesta. Variación &lt; 0,15% cuenta como lateral.</div>
-        </div>`;
+        <div class="outlook-stats" style="margin:0 0 .4rem">
+          ${data.days.length} análisis
+          · Tasa hoy: ${st.todayPct != null ? st.todayPct + '%' : '—'}
+          · Tasa 2-5d: ${st.nextDaysPct != null ? st.nextDaysPct + '%' : '—'}
+        </div>
+        <div class="outlook-hist-compact">${rows}</div>
+        <div class="outlook-stats">Acierto = misma dirección · Parcial = uno lateral · Error = opuesta. Variación &lt; 0,15% = lateral.</div>`;
+      host.querySelectorAll('[data-outlook-date]').forEach(node => {
+        const open = () => {
+          closeOutlookHistPanel();
+          openOutlookPanelForDate(node.dataset.outlookDate);
+        };
+        node.addEventListener('click', open);
+        node.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+        });
+      });
     } catch {
-      host.innerHTML = '';
+      host.innerHTML = '<div class="insights-no-data">No se pudo cargar el historial.</div>';
     }
   }
 
-  async function loadOutlook() {
+  function closeOutlookHistPanel() {
+    outlookHistOpen = false;
+    document.getElementById('btnOutlookHist')?.classList.remove('active');
+    const p = document.getElementById('outlookHistPanel');
+    if (p) p.style.display = 'none';
+  }
+
+  function closeOutlookPanel() {
+    outlookOpen = false;
+    document.getElementById('btnOutlook')?.classList.remove('active');
+    const p = document.getElementById('outlookPanel');
+    if (p) p.style.display = 'none';
+  }
+
+  function openOutlookPanelForDate(dateStr) {
+    outlookOpen = true;
+    document.getElementById('btnOutlook').classList.add('active');
+    document.getElementById('outlookPanel').style.display = 'block';
+    loadOutlook({ date: dateStr, autoGenerate: false });
+  }
+
+  async function loadOutlook({ autoGenerate = true, date = null } = {}) {
     const el = document.getElementById('outlookBody');
-    el.innerHTML = '<span class="hist-loading">Cargando análisis...</span>';
+    const target = date || outlookDate();
+    outlookViewDate = target;
+    const isToday = target === outlookDate();
+    updateOutlookHeader(target);
+    const title = document.getElementById('outlookPanelTitle');
+    const sub = document.getElementById('outlookPanelSub');
+    if (!isToday) {
+      if (title) title.textContent = `Análisis · ${formatStoredDay(target)}`;
+      if (sub) sub.textContent = 'Análisis histórico (tocá “Volver a hoy” o el día de hoy en el historial)';
+    }
+    el.innerHTML = `<span class="hist-loading">Cargando análisis del ${formatStoredDay(target)}...</span>`;
     try {
-      const date = outlookDate();
-      const res = await fetch(`/api/tc-outlook?date=${date}`, { cache: 'no-store' });
+      const res = await fetch(`/api/tc-outlook?date=${target}`, { cache: 'no-store' });
       const data = await res.json();
+      if (autoGenerate && isToday && data.configured && !data.found) {
+        el.innerHTML = '<span class="hist-loading">Generando análisis estimado de hoy...</span>';
+        await runOutlook();
+        return;
+      }
       renderOutlook(data);
+      if (!isToday) {
+        const hero = el.querySelector('.outlook-hero-kicker');
+        if (hero) hero.textContent = 'Análisis histórico';
+        const back = document.createElement('button');
+        back.className = 'chart-action-btn';
+        back.style.marginBottom = '.45rem';
+        back.textContent = 'Volver a hoy';
+        back.addEventListener('click', () => loadOutlook({ autoGenerate: false }));
+        el.insertBefore(back, el.firstChild);
+      }
     } catch {
       el.innerHTML = '<div class="insights-no-data">No se pudo cargar el análisis.</div>';
     }
@@ -2531,12 +2698,14 @@
 
   async function runOutlook() {
     const el = document.getElementById('outlookBody');
-    el.innerHTML = '<span class="hist-loading">Consultando OpenAI (puede tardar unos segundos)...</span>';
+    const date = outlookDate();
+    updateOutlookHeader(date);
+    el.innerHTML = `<span class="hist-loading">Consultando OpenAI para el ${formatStoredDay(date)}...</span>`;
     try {
       const res = await fetch('/api/tc-outlook/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: outlookDate(), force: true }),
+        body: JSON.stringify({ date, force: true }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -2544,7 +2713,6 @@
         return;
       }
       renderOutlook({ ...data, found: true, configured: true });
-      loadOutlookHistory();
     } catch {
       el.innerHTML = '<div class="insights-no-data">Error al generar el análisis.</div>';
     }
@@ -2552,12 +2720,38 @@
 
   function toggleOutlookPanel() {
     outlookOpen = !outlookOpen;
+    if (outlookOpen) {
+      closeOutlookHistPanel();
+      if (histOpen) {
+        histOpen = false;
+        document.getElementById('btnHistorial')?.classList.remove('active');
+        document.getElementById('histPanel').style.display = 'none';
+        document.getElementById('btnPatron').style.display = 'none';
+      }
+    }
     document.getElementById('btnOutlook').classList.toggle('active', outlookOpen);
     document.getElementById('outlookPanel').style.display = outlookOpen ? 'block' : 'none';
-    if (outlookOpen) loadOutlook();
+    if (outlookOpen) loadOutlook({ autoGenerate: true });
+  }
+
+  function toggleOutlookHistPanel() {
+    outlookHistOpen = !outlookHistOpen;
+    if (outlookHistOpen) {
+      closeOutlookPanel();
+      if (histOpen) {
+        histOpen = false;
+        document.getElementById('btnHistorial')?.classList.remove('active');
+        document.getElementById('histPanel').style.display = 'none';
+        document.getElementById('btnPatron').style.display = 'none';
+      }
+    }
+    document.getElementById('btnOutlookHist').classList.toggle('active', outlookHistOpen);
+    document.getElementById('outlookHistPanel').style.display = outlookHistOpen ? 'block' : 'none';
+    if (outlookHistOpen) loadOutlookHistoryList();
   }
 
   document.getElementById('btnOutlook').addEventListener('click', toggleOutlookPanel);
+  document.getElementById('btnOutlookHist').addEventListener('click', toggleOutlookHistPanel);
   document.getElementById('btnOutlookRun').addEventListener('click', runOutlook);
 
   // ── Fetch Noticias ──
