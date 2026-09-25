@@ -1,0 +1,31 @@
+# Estimación pre-rueda ~9:00 ART (12:00 UTC), días hábiles.
+# Requiere secrets: APP_URL, PROJECTION_JOB_SECRET (mismo header x-job-secret)
+name: Daily TC estimate
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  run-estimate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run pre-session estimate
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "Configurá APP_URL"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PROJECTION_JOB_SECRET }}" ]; then
+            echo "Configurá PROJECTION_JOB_SECRET"
+            exit 1
+          fi
+
+          curl -fsS -X POST "${{ secrets.APP_URL }}/api/tc-outlook/estimate-run" \
+            -H "x-job-secret: ${{ secrets.PROJECTION_JOB_SECRET }}" \
+            -H "content-type: application/json" \
+            -d '{"force":true}' \
+            | head -c 2000
+          echo ""
+          echo "OK $(date -u)"

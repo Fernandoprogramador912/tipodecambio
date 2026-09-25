@@ -92,17 +92,24 @@ Si más adelante querés cero cold starts, se puede cambiar Render a plan Starte
 | `SUPABASE_DAILY_PROJECTIONS_TABLE` | `daily_projections` |
 | `SUPABASE_TC_INTRADAY_TABLE` | `tc_intraday_days` (gráfico por día) |
 | `SUPABASE_NEWS_ARCHIVE_TABLE` | `tc_day_news` (noticias de alto impacto por día) |
+| `SUPABASE_TC_OUTLOOK_TABLE` | `tc_day_outlook` (análisis OpenAI diario) |
 | `TC_HISTORY_START_DATE` | Fijar al día de activación (ej. `2026-08-11`); sin esto usa "hoy" como default y puede perder días pasados |
 | `PROJECTION_JOB_SECRET` | Sí, mismo valor en Render y GitHub |
 
 ### Historial del gráfico intradiario (Supabase)
 
-Ejecutá una vez en el SQL Editor los scripts `scripts/tc-intraday-supabase.sql` y `scripts/tc-news-archive-supabase.sql`.  
+Ejecutá una vez en el SQL Editor los scripts:
+- `scripts/tc-intraday-supabase.sql`
+- `scripts/tc-news-archive-supabase.sql`
+- `scripts/tc-outlook-supabase.sql` (análisis de escenario / cierre)
+
 Cada rueda (10:00–15:00 ART) guarda puntos en `tc_intraday_days` cada **5 minutos**. En el dashboard podés elegir uno o más días (máx. 4) para comparar curvas, ver resumen estadístico (apertura/cierre/mín/máx/horarios) y consultar el **patrón histórico por franja horaria** para decidir en qué momento cerrar cambio.
 
 **Variable crítica:** configurar `TC_HISTORY_START_DATE=YYYY-MM-DD` en Render con la fecha de hoy para que el historial acumule desde ese día en adelante.
 
-Las noticias de alto impacto del día se archivan automáticamente a las 15:30 ART en `tc_day_news`.
+Las noticias de alto impacto del día se archivan automáticamente a las 15:30 ART en `tc_day_news`. El análisis de cierre también se guarda a las 15:30 en `tc_day_outlook` (si existe la tabla y `OPENAI_API_KEY`).
+
+Para migrar análisis locales ya generados: `node scripts/migrate-outlook-to-supabase.js`.
 
 ---
 

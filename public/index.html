@@ -585,6 +585,12 @@
     .outlook-hero-meta {
       font-size: .65rem; color: var(--muted); margin-top: .4rem;
     }
+    .outlook-run-hint {
+      font-size: .65rem; color: var(--muted); margin: 0 0 .45rem; line-height: 1.35;
+    }
+    #btnOutlookRun:disabled {
+      opacity: .45; cursor: not-allowed; border-color: var(--border); color: var(--muted);
+    }
     .outlook-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: .55rem;
     }
@@ -1282,8 +1288,9 @@
         <div class="chart-btn-row">
           <button class="chart-action-btn" id="btnHistorial">Historial</button>
           <button class="chart-action-btn" id="btnPatron" style="display:none">Patrón</button>
-          <button class="chart-action-btn" id="btnOutlook">Análisis</button>
-          <button class="chart-action-btn" id="btnOutlookHist">Hist. análisis</button>
+          <button class="chart-action-btn" id="btnOutlook">Estimación</button>
+          <button class="chart-action-btn" id="btnAnalysis">Análisis</button>
+          <button class="chart-action-btn" id="btnOutlookHist">Hist. estimaciones</button>
         </div>
 
         <!-- Panel historial -->
@@ -1299,19 +1306,19 @@
         <div id="outlookPanel" class="outlook-panel" style="display:none">
           <div class="outlook-head">
             <div>
-              <div class="outlook-title" id="outlookPanelTitle">Análisis estimado de hoy</div>
-              <div class="outlook-title-sub" id="outlookPanelSub">Sesgo esperado para la rueda mayorista</div>
+              <div class="outlook-title" id="outlookPanelTitle">Estimación de hoy</div>
+              <div class="outlook-title-sub" id="outlookPanelSub">Pre-rueda 08:00–09:55 · aciertos al cierre</div>
             </div>
-            <button class="chart-action-btn" id="btnOutlookRun">Actualizar análisis</button>
+            <button class="chart-action-btn" id="btnOutlookRun">Generar estimación</button>
           </div>
-          <div id="outlookBody"><span class="hist-loading">Cargando análisis...</span></div>
+          <div id="outlookBody"><span class="hist-loading">Cargando...</span></div>
         </div>
 
         <div id="outlookHistPanel" class="outlook-panel" style="display:none">
           <div class="outlook-head">
             <div>
-              <div class="outlook-title">Historial de análisis</div>
-              <div class="outlook-title-sub">Lista resumida · tocá un día para ver el detalle completo</div>
+              <div class="outlook-title">Historial de estimaciones</div>
+              <div class="outlook-title-sub">Solo predicciones pre-rueda · tocá un día para ver el detalle</div>
             </div>
           </div>
           <div id="outlookHistBody"><span class="hist-loading">Cargando historial...</span></div>
@@ -2509,38 +2516,83 @@
   let outlookOpen = false;
   let outlookHistOpen = false;
   let outlookViewDate = null;
+  /** 'estimate' | 'analysis' — qué muestra el panel único */
+  let outlookMode = 'estimate';
 
-  /** El análisis principal siempre es el del día de hoy (ART), no el del calendario. */
   function outlookDate() {
     return todayARTString();
   }
 
-  function updateOutlookHeader(dateStr) {
+  function updateOutlookHeader(dateStr, mode = outlookMode) {
     const title = document.getElementById('outlookPanelTitle');
     const sub = document.getElementById('outlookPanelSub');
-    if (title) title.textContent = `Análisis estimado · ${formatStoredDay(dateStr)}`;
-    if (sub) sub.textContent = 'Sesgo esperado para la rueda mayorista de hoy (10:00–15:00 ART)';
+    if (mode === 'analysis') {
+      if (title) title.textContent = `Análisis · ${formatStoredDay(dateStr)}`;
+      if (sub) sub.textContent = 'Rueda 10:00–15:00 · cierre automático 15:30 (no mide aciertos)';
+    } else {
+      if (title) title.textContent = `Estimación · ${formatStoredDay(dateStr)}`;
+      if (sub) sub.textContent = 'Pre-rueda 08:00–09:55 · aciertos al cierre · auto ~09:00';
+    }
+  }
+
+  function applyOutlookRunPolicy(policy, { isToday = true, mode = outlookMode } = {}) {
+    const btn = document.getElementById('btnOutlookRun');
+    if (!btn) return;
+    const allow = Boolean(isToday && (mode === 'estimate' ? policy?.estimateAllowed : policy?.analysisAllowed));
+    const reason = mode === 'estimate'
+      ? (policy?.estimateReason || 'Estimación solo 08:00–09:55 ART')
+      : (policy?.analysisReason || 'Análisis de rueda solo 10:00–15:00 ART');
+    btn.disabled = !allow;
+    btn.title = allow
+      ? (mode === 'estimate'
+        ? `Genera la estimación pre-rueda (máx. 1 cada ${policy.throttleMinutes || 30} min)`
+        : `Actualiza el análisis de rueda (máx. 1 cada ${policy.throttleMinutes || 30} min)`)
+      : reason;
+    if (mode === 'estimate') {
+      btn.textContent = allow ? 'Generar estimación' : 'Estimación 08:00–09:55';
+    } else {
+      btn.textContent = allow ? 'Actualizar análisis' : 'Análisis 10:00–15:00';
+    }
   }
 
   function renderOutlook(data) {
     const el = document.getElementById('outlookBody');
     const dateStr = data.date || outlookDate();
-    updateOutlookHeader(dateStr);
+    const isToday = dateStr === outlookDate();
+    const mode = data.view === 'analysis' ? 'analysis' : 'estimate';
+    outlookMode = mode;
+    updateOutlookHeader(dateStr, mode);
+    applyOutlookRunPolicy(data.runPolicy, { isToday, mode });
 
     if (!data?.configured && !data?.found) {
-      el.innerHTML = '<div class="insights-no-data">Falta configurar OPENAI_API_KEY en el .env local (y en Render). Sin eso no se puede generar el análisis.</div>';
+      el.innerHTML = '<div class="insights-no-data">Falta configurar OPENAI_API_KEY en el .env local (y en Render).</div>';
       return;
     }
     if (!data?.found || !data.analysis) {
+      const policy = data.runPolicy;
+      let hint;
+      if (!isToday) {
+        hint = mode === 'estimate' ? 'No hay estimación guardada para este día.' : 'No hay análisis guardado para este día.';
+      } else if (mode === 'estimate') {
+        hint = policy?.estimateAllowed
+          ? 'Todavía no hay estimación de hoy. Tocá <strong>Generar estimación</strong> (08:00–09:55 ART), o esperá el auto de las 09:00.'
+          : escHtml(policy?.estimateReason || 'La estimación pre-rueda es de 08:00 a 09:55 ART.');
+      } else {
+        hint = policy?.analysisAllowed
+          ? 'Todavía no hay análisis de rueda. Tocá <strong>Actualizar análisis</strong>.'
+          : escHtml(policy?.analysisReason || 'El análisis de rueda es de 10:00 a 15:00; el cierre a las 15:30.');
+      }
       el.innerHTML = `
         <div class="outlook-hero">
-          <div class="outlook-hero-kicker">Estimación del día</div>
+          <div class="outlook-hero-kicker">${mode === 'estimate' ? 'Sin estimación aún' : 'Sin análisis aún'}</div>
           <div class="outlook-hero-row">
             <span class="outlook-hero-date">${formatStoredDay(dateStr)}</span>
-            <span class="outlook-bias lateral">Sin análisis aún</span>
+            <span class="outlook-bias lateral">Pendiente</span>
           </div>
-          <p class="outlook-hero-summary">Todavía no hay un análisis estimado para hoy. Tocá <strong>Actualizar análisis</strong> para generar el de esta rueda.</p>
-          <div class="outlook-hero-meta">También se genera solo a las 15:30 ART.</div>
+          <p class="outlook-hero-summary">${hint}</p>
+          <div class="outlook-hero-meta">${mode === 'estimate'
+            ? 'La tasa de aciertos se mide sobre estas estimaciones, al cierre de la rueda.'
+            : 'El análisis no entra en la tasa de aciertos (eso es la Estimación).'}</div>
         </div>`;
       return;
     }
@@ -2552,30 +2604,51 @@
     const risks = (a.risks || []).map(r => `<li>${escHtml(r)}</li>`).join('');
     const verdictLabel = { acierto: 'Acierto', parcial: 'Parcial', error: 'No acertó', pendiente: 'Pendiente' };
     const scoreBits = [];
-    if (data.score?.today) {
+    if (mode === 'estimate' && data.score?.today) {
       const t = data.score.today;
       scoreBits.push(`<span class="outlook-verdict ${t.verdict}">Hoy: ${verdictLabel[t.verdict] || t.verdict}${t.actual ? ` · fue ${t.actual}` : ''}${t.changePct != null ? ` (${t.changePct > 0 ? '+' : ''}${t.changePct}%)` : ''}</span>`);
     }
-    if (data.score?.nextDays) {
+    if (mode === 'estimate' && data.score?.nextDays) {
       const n = data.score.nextDays;
       scoreBits.push(`<span class="outlook-verdict ${n.verdict}">Próx. días: ${verdictLabel[n.verdict] || n.verdict}${n.actual ? ` · fue ${n.actual}` : ''}${n.evaluatedDate ? ` · al ${formatStoredDay(n.evaluatedDate)}` : ''}</span>`);
     }
     const genAt = data.generatedAt
       ? new Date(data.generatedAt).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       : null;
+    const kind = a.kind || data.kind || mode;
+    const isClose = kind === 'close';
+    const heroKicker = !isToday
+      ? (mode === 'estimate' ? 'Estimación histórica' : 'Análisis histórico')
+      : (mode === 'estimate'
+        ? 'Estimación pre-rueda'
+        : (isClose ? 'Análisis de cierre' : 'Análisis de rueda'));
+    const policy = data.runPolicy;
+    let policyHint = '';
+    if (isToday && policy) {
+      if (mode === 'estimate') {
+        policyHint = `<p class="outlook-run-hint">${policy.estimateAllowed
+          ? `Ventana de estimación abierta (08:00–09:55). Máx. 1 cada ${policy.throttleMinutes || 30} min. También se genera solo ~09:00.`
+          : escHtml(policy.estimateReason || '')}</p>`;
+      } else {
+        policyHint = `<p class="outlook-run-hint">${policy.analysisAllowed
+          ? `Podés actualizar el análisis de rueda ahora. El cierre final se genera solo a las 15:30.`
+          : escHtml(policy.analysisReason || '')}</p>`;
+      }
+    }
     el.innerHTML = `
+      ${policyHint}
       <div class="outlook-hero">
-        <div class="outlook-hero-kicker">Análisis estimado para hoy</div>
+        <div class="outlook-hero-kicker">${heroKicker}</div>
         <div class="outlook-hero-row">
           <span class="outlook-hero-date">${formatStoredDay(dateStr)}</span>
           <span class="outlook-bias lg ${a.todayBias || 'lateral'}">${biasLabel[a.todayBias] || a.todayBias}</span>
         </div>
         <p class="outlook-hero-summary">${escHtml(a.todaySummary || '—')}</p>
-        <div class="outlook-hero-meta">Confianza ${a.confidence ?? '—'}%${genAt ? ` · generado ${genAt}` : ''}</div>
+        <div class="outlook-hero-meta">Confianza ${a.confidence ?? '—'}%${genAt ? ` · generado ${genAt}` : ''}${mode === 'estimate' ? ' · cuenta para aciertos' : ' · no cuenta para aciertos'}</div>
       </div>
       ${scoreBits.length ? `<div class="outlook-score-row">${scoreBits.join('')}</div>` : ''}
       <div class="outlook-grid">
-        <div class="outlook-box"><h4>Factores clave de hoy</h4>
+        <div class="outlook-box"><h4>Factores clave</h4>
           ${drivers ? `<div class="outlook-drivers" style="margin-top:0">${drivers}</div>` : '<p>Sin factores destacados.</p>'}
         </div>
         <div class="outlook-box"><h4>Próximos días (${escHtml(a.nextDays?.horizon || '2-5 ruedas')})</h4>
@@ -2609,7 +2682,7 @@
       const res = await fetch('/api/tc-outlook/history', { cache: 'no-store' });
       const data = await res.json();
       if (!data.ok || !data.days?.length) {
-        host.innerHTML = '<div class="outlook-stats">Todavía no hay análisis guardados.</div>';
+        host.innerHTML = '<div class="outlook-stats">Todavía no hay estimaciones guardadas.</div>';
         return;
       }
       const biasShort = { alcista: 'Alcista', bajista: 'Bajista', lateral: 'Lateral' };
@@ -2618,21 +2691,30 @@
       const rows = data.days.map(d => {
         const v = d.score?.today?.verdict || 'pendiente';
         return `
-          <div class="outlook-hist-row" data-outlook-date="${d.date}" role="button" tabindex="0" title="Ver análisis completo">
+          <div class="outlook-hist-row" data-outlook-date="${d.date}" role="button" tabindex="0" title="Ver estimación">
             <span class="h-date">${formatStoredDay(d.date)}</span>
             <span class="outlook-bias ${d.todayBias || 'lateral'}">${biasShort[d.todayBias] || d.todayBias || '—'}</span>
             <span class="outlook-verdict ${v}">${vLabel[v] || 'Pendiente'}</span>
             <span class="h-snip">${escHtml(snippetText(d.todaySummary))}</span>
           </div>`;
       }).join('');
+      const todayRate = st.todayPct != null
+        ? `${st.todayPct}% (${st.todayEvaluated || 0} eval.)`
+        : '— (sin evaluados aún)';
+      const nextRate = st.nextDaysPct != null
+        ? `${st.nextDaysPct}% (${st.nextDaysEvaluated || 0} eval.)`
+        : '—';
+      const pendingNote = st.todayPending
+        ? ` · ${st.todayPending} pendiente${st.todayPending > 1 ? 's' : ''} (no entran en la tasa)`
+        : '';
       host.innerHTML = `
         <div class="outlook-stats" style="margin:0 0 .4rem">
-          ${data.days.length} análisis
-          · Tasa hoy: ${st.todayPct != null ? st.todayPct + '%' : '—'}
-          · Tasa 2-5d: ${st.nextDaysPct != null ? st.nextDaysPct + '%' : '—'}
+          ${data.days.length} estimación${data.days.length === 1 ? '' : 'es'}
+          · Acierto día: ${todayRate}${pendingNote}
+          · Acierto 2-5d: ${nextRate}
         </div>
         <div class="outlook-hist-compact">${rows}</div>
-        <div class="outlook-stats">Acierto = misma dirección · Parcial = uno lateral · Error = opuesta. Variación &lt; 0,15% = lateral.</div>`;
+        <div class="outlook-stats">Solo estimaciones pre-rueda. Pendiente = rueda de ese día aún no cerró. Acierto = misma dirección · Parcial = uno lateral · Error = opuesta.</div>`;
       host.querySelectorAll('[data-outlook-date]').forEach(node => {
         const open = () => {
           closeOutlookHistPanel();
@@ -2658,90 +2740,111 @@
   function closeOutlookPanel() {
     outlookOpen = false;
     document.getElementById('btnOutlook')?.classList.remove('active');
+    document.getElementById('btnAnalysis')?.classList.remove('active');
     const p = document.getElementById('outlookPanel');
     if (p) p.style.display = 'none';
   }
 
   function openOutlookPanelForDate(dateStr) {
+    outlookMode = 'estimate';
     outlookOpen = true;
+    document.getElementById('btnAnalysis')?.classList.remove('active');
     document.getElementById('btnOutlook').classList.add('active');
     document.getElementById('outlookPanel').style.display = 'block';
-    loadOutlook({ date: dateStr, autoGenerate: false });
+    loadOutlook({ date: dateStr, mode: 'estimate' });
   }
 
-  async function loadOutlook({ autoGenerate = true, date = null } = {}) {
+  function closeSidePanelsForOutlook() {
+    closeOutlookHistPanel();
+    if (histOpen) {
+      histOpen = false;
+      document.getElementById('btnHistorial')?.classList.remove('active');
+      document.getElementById('histPanel').style.display = 'none';
+      document.getElementById('btnPatron').style.display = 'none';
+    }
+  }
+
+  async function loadOutlook({ date = null, mode = outlookMode } = {}) {
     const el = document.getElementById('outlookBody');
     const target = date || outlookDate();
     outlookViewDate = target;
+    outlookMode = mode;
     const isToday = target === outlookDate();
-    updateOutlookHeader(target);
-    const title = document.getElementById('outlookPanelTitle');
-    const sub = document.getElementById('outlookPanelSub');
-    if (!isToday) {
-      if (title) title.textContent = `Análisis · ${formatStoredDay(target)}`;
-      if (sub) sub.textContent = 'Análisis histórico (tocá “Volver a hoy” o el día de hoy en el historial)';
-    }
-    el.innerHTML = `<span class="hist-loading">Cargando análisis del ${formatStoredDay(target)}...</span>`;
+    updateOutlookHeader(target, mode);
+    el.innerHTML = `<span class="hist-loading">Cargando ${mode === 'estimate' ? 'estimación' : 'análisis'} del ${formatStoredDay(target)}...</span>`;
     try {
-      const res = await fetch(`/api/tc-outlook?date=${target}`, { cache: 'no-store' });
+      const res = await fetch(`/api/tc-outlook?date=${encodeURIComponent(target)}&view=${mode}`, { cache: 'no-store' });
       const data = await res.json();
-      if (autoGenerate && isToday && data.configured && !data.found) {
-        el.innerHTML = '<span class="hist-loading">Generando análisis estimado de hoy...</span>';
-        await runOutlook();
-        return;
-      }
-      renderOutlook(data);
+      renderOutlook({ ...data, view: mode });
       if (!isToday) {
-        const hero = el.querySelector('.outlook-hero-kicker');
-        if (hero) hero.textContent = 'Análisis histórico';
         const back = document.createElement('button');
         back.className = 'chart-action-btn';
         back.style.marginBottom = '.45rem';
         back.textContent = 'Volver a hoy';
-        back.addEventListener('click', () => loadOutlook({ autoGenerate: false }));
+        back.addEventListener('click', () => loadOutlook({ mode }));
         el.insertBefore(back, el.firstChild);
       }
     } catch {
-      el.innerHTML = '<div class="insights-no-data">No se pudo cargar el análisis.</div>';
+      el.innerHTML = '<div class="insights-no-data">No se pudo cargar.</div>';
     }
   }
 
   async function runOutlook() {
     const el = document.getElementById('outlookBody');
     const date = outlookDate();
-    updateOutlookHeader(date);
-    el.innerHTML = `<span class="hist-loading">Consultando OpenAI para el ${formatStoredDay(date)}...</span>`;
+    const mode = outlookMode;
+    const kind = mode === 'estimate' ? 'estimate' : 'intraday';
+    updateOutlookHeader(date, mode);
+    el.innerHTML = `<span class="hist-loading">Consultando OpenAI (${mode === 'estimate' ? 'estimación' : 'análisis'})...</span>`;
     try {
       const res = await fetch('/api/tc-outlook/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, force: true }),
+        body: JSON.stringify({ date, force: true, kind, source: 'manual' }),
       });
       const data = await res.json();
       if (!data.ok) {
+        if (data.analysis) {
+          renderOutlook({ ...data, found: true, configured: true, view: mode });
+          const warn = document.createElement('p');
+          warn.className = 'outlook-run-hint';
+          warn.style.color = 'var(--yellow)';
+          warn.textContent = data.error || 'No se pudo regenerar ahora.';
+          el.insertBefore(warn, el.firstChild);
+          return;
+        }
         el.innerHTML = `<div class="insights-no-data">${escHtml(data.error || 'No se pudo generar')}</div>`;
+        applyOutlookRunPolicy(data.runPolicy, { isToday: true, mode });
         return;
       }
-      renderOutlook({ ...data, found: true, configured: true });
+      renderOutlook({ ...data, found: true, configured: true, view: mode });
     } catch {
-      el.innerHTML = '<div class="insights-no-data">Error al generar el análisis.</div>';
+      el.innerHTML = '<div class="insights-no-data">Error al generar.</div>';
     }
   }
 
   function toggleOutlookPanel() {
-    outlookOpen = !outlookOpen;
-    if (outlookOpen) {
-      closeOutlookHistPanel();
-      if (histOpen) {
-        histOpen = false;
-        document.getElementById('btnHistorial')?.classList.remove('active');
-        document.getElementById('histPanel').style.display = 'none';
-        document.getElementById('btnPatron').style.display = 'none';
-      }
-    }
-    document.getElementById('btnOutlook').classList.toggle('active', outlookOpen);
-    document.getElementById('outlookPanel').style.display = outlookOpen ? 'block' : 'none';
-    if (outlookOpen) loadOutlook({ autoGenerate: true });
+    const opening = !(outlookOpen && outlookMode === 'estimate');
+    closeOutlookPanel();
+    if (!opening) return;
+    outlookMode = 'estimate';
+    outlookOpen = true;
+    closeSidePanelsForOutlook();
+    document.getElementById('btnOutlook').classList.add('active');
+    document.getElementById('outlookPanel').style.display = 'block';
+    loadOutlook({ mode: 'estimate' });
+  }
+
+  function toggleAnalysisPanel() {
+    const opening = !(outlookOpen && outlookMode === 'analysis');
+    closeOutlookPanel();
+    if (!opening) return;
+    outlookMode = 'analysis';
+    outlookOpen = true;
+    closeSidePanelsForOutlook();
+    document.getElementById('btnAnalysis').classList.add('active');
+    document.getElementById('outlookPanel').style.display = 'block';
+    loadOutlook({ mode: 'analysis' });
   }
 
   function toggleOutlookHistPanel() {
@@ -2761,6 +2864,7 @@
   }
 
   document.getElementById('btnOutlook').addEventListener('click', toggleOutlookPanel);
+  document.getElementById('btnAnalysis').addEventListener('click', toggleAnalysisPanel);
   document.getElementById('btnOutlookHist').addEventListener('click', toggleOutlookHistPanel);
   document.getElementById('btnOutlookRun').addEventListener('click', runOutlook);
 

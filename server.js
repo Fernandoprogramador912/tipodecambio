@@ -350,7 +350,8 @@ app.get('/api/tc-outlook', async (req, res) => {
     const date = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
       ? req.query.date
       : tcOutlook.todayART();
-    const result = await tcOutlook.getOutlook(date);
+    const view = req.query.view === 'analysis' ? 'analysis' : 'estimate';
+    const result = await tcOutlook.getOutlook(date, { view });
     res.json(result);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -363,7 +364,33 @@ app.post('/api/tc-outlook/run', async (req, res) => {
       ? req.body.date
       : tcOutlook.todayART();
     const force = Boolean(req.body?.force);
-    const result = await tcOutlook.generateOutlook(date, { force });
+    const source = req.body?.source === 'cron' ? 'cron' : 'manual';
+    let kind = req.body?.kind;
+    if (kind !== 'estimate' && kind !== 'close' && kind !== 'intraday') {
+      kind = 'estimate';
+    }
+    const result = await tcOutlook.generateOutlook(date, { force, source, kind });
+    const status = result.ok ? 200 : 400;
+    res.status(status).json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/** Job externo (GitHub Actions): estimación pre-rueda ~9:00 ART */
+app.post('/api/tc-outlook/estimate-run', async (req, res) => {
+  try {
+    if (!validateJobSecret(req)) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
+    const date = req.body?.date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date)
+      ? req.body.date
+      : tcOutlook.todayART();
+    const result = await tcOutlook.generateOutlook(date, {
+      force: true,
+      kind: 'estimate',
+      source: 'cron',
+    });
     const status = result.ok ? 200 : 400;
     res.status(status).json(result);
   } catch (err) {
@@ -392,16 +419,36 @@ app.get('*', (req, res) => {
 });
 
 /**
- * Cron liviano: cada minuto verifica si son las 15:30 ART (±30s) para archivar noticias.
- * No usa dependencias externas; un proceso persistente (Render) lo lleva bien.
+ * Cron liviano:
+ * - 09:00 ART (±2 min): estimación pre-rueda (para aciertos)
+ * - 15:30 ART (±5 min): archivo de noticias + análisis de cierre
  */
 function startNewsArchiveCron() {
   let lastArchiveDate = null;
+  let lastEstimateDate = null;
   setInterval(async () => {
     const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const h = art.getUTCHours();
     const m = art.getUTCMinutes();
     const today = art.toISOString().slice(0, 10);
+    const dow = art.getUTCDay(); // 0=dom … 6=sáb (aprox ART vía offset)
+    const isWeekday = dow >= 1 && dow <= 5;
+
+    if (isWeekday && h === 9 && m < 3 && lastEstimateDate !== today && tcOutlook.hasOpenAI()) {
+      lastEstimateDate = today;
+      try {
+        const outlook = await tcOutlook.generateOutlook(today, {
+          force: true,
+          kind: 'estimate',
+          source: 'cron',
+        });
+        console.log(`[tc-outlook] ${outlook.ok ? `estimación ${today} (${outlook.storage})` : outlook.error}`);
+      } catch (err) {
+        console.warn('[tc-outlook] Error estimación 9:00:', err.message);
+        lastEstimateDate = null;
+      }
+    }
+
     if (h === 15 && m >= 30 && m < 35 && lastArchiveDate !== today) {
       lastArchiveDate = today;
       try {
@@ -409,8 +456,12 @@ function startNewsArchiveCron() {
         const result = await newsArchive.archiveToday(news.items || []);
         console.log(`[news-archive] ${result.archived ? `${result.count} noticias archivadas (${result.storage})` : result.reason}`);
         if (tcOutlook.hasOpenAI()) {
-          const outlook = await tcOutlook.generateOutlook(today, { force: true });
-          console.log(`[tc-outlook] ${outlook.ok ? `análisis ${today} (${outlook.storage})` : outlook.error}`);
+          const outlook = await tcOutlook.generateOutlook(today, {
+            force: true,
+            kind: 'close',
+            source: 'cron',
+          });
+          console.log(`[tc-outlook] ${outlook.ok ? `cierre ${today} (${outlook.storage})` : outlook.error}`);
         }
       } catch (err) {
         console.warn('[news-archive] Error en cron:', err.message);
@@ -432,6 +483,7 @@ if (require.main === module) {
     }
     startNewsArchiveCron();
     console.log('  Archivo de noticias: cron activo (15:30 ART)');
+    console.log('  Estimación TC: cron 09:00 ART + análisis de cierre 15:30');
     console.log(`  Análisis OpenAI: ${tcOutlook.hasOpenAI() ? 'activo' : 'sin OPENAI_API_KEY'}\n`);
   });
 }
