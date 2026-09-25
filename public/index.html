@@ -2713,14 +2713,18 @@
     const rangeNote = (data.from && data.to)
       ? `${formatStoredDay(data.from)} → ${formatStoredDay(data.to)}`
       : (data.until ? `hasta ${formatStoredDay(data.until)}` : '');
+    const truncNote = data.truncatedToNow
+      ? ' · solo franjas ya transcurridas hoy'
+      : '';
 
     el.innerHTML = `
       <div class="hist-insights-title">
         Patrón histórico por franja horaria
-        <span class="hist-insights-note">· ${data.daysAnalyzed} días analizados${rangeNote ? ` · ${rangeNote}` : ''} · desviación vs promedio del período</span>
+        <span class="hist-insights-note">· ${data.daysAnalyzed} días analizados${rangeNote ? ` · ${rangeNote}` : ''}${truncNote} · desviación vs promedio del período</span>
       </div>
       <p style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">
         Ventana de hasta 30 ruedas hacia atrás desde el día seleccionado en el calendario.
+        Si el día es hoy, no se muestran horarios que todavía no pasaron.
         Verde = históricamente más barato que el promedio · Rojo = más caro · Dato estadístico, no predicción.
       </p>
       <div class="insights-grid">${grid}</div>

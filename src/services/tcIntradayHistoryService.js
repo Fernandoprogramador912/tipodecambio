@@ -467,8 +467,24 @@ async function getInsights(opts = {}) {
     }
   }
 
+  // Si "until" es hoy, no mostrar franjas que todavía no ocurrieron
+  // (esas promedios venían solo de otros días y confundían).
+  let slotsLimit = SLOTS_TOTAL;
+  let truncatedToNow = false;
+  if (until === todayART()) {
+    const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const nowMin = art.getUTCHours() * 60 + art.getUTCMinutes();
+    if (nowMin < 10 * 60) {
+      slotsLimit = 0;
+    } else if (nowMin < 15 * 60) {
+      slotsLimit = Math.floor((nowMin - 10 * 60) / SLOT_MIN) + 1;
+      truncatedToNow = true;
+    }
+    slotsLimit = Math.max(0, Math.min(SLOTS_TOTAL, slotsLimit));
+  }
+
   const slots = [];
-  for (let i = 0; i < SLOTS_TOTAL; i++) {
+  for (let i = 0; i < slotsLimit; i++) {
     const artMin = 10 * 60 + i * SLOT_MIN;
     const time = slotLabel(artMin);
     const vals = (slotMatrix[i] || []).sort((a, b) => a - b);
@@ -508,6 +524,7 @@ async function getInsights(opts = {}) {
     from: sortedAnalyzed[0] || null,
     to: sortedAnalyzed[sortedAnalyzed.length - 1] || null,
     windowDays: maxDays,
+    truncatedToNow,
   };
 }
 
