@@ -1203,13 +1203,39 @@
     }
 
     @media (max-width: 1100px) {
+      /* Solo mobile/tablet: USD + gráfico primero; desktop intacto */
       main.terminal-desk {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "center"
-          "left";
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: none;
+        grid-template-areas: none;
+        gap: .55rem;
       }
+      .desk-left,
+      .desk-left-pin,
+      .desk-center {
+        display: contents;
+      }
+      .desk-left-pin { position: static; }
+      .mob-o-spot { order: 1; }
+      .mob-o-chart { order: 2; }
+      .mob-o-eur { order: 3; }
+      .mob-o-futures { order: 4; }
+      .mob-o-fx { order: 5; }
+      .mob-o-news { order: 6; }
       .usd-chart-hero .usd-card { height: auto; }
+      .usd-chart-hero .chart-card { min-height: 260px; }
+      .fut-table-wrap { max-height: none; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .chart-btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem;
+      }
+      .chart-action-btn {
+        min-height: 2.35rem;
+        padding: .4rem .65rem;
+        font-size: .72rem;
+      }
     }
 
     @media (max-width: 900px) {
@@ -1220,54 +1246,62 @@
     @media (max-width: 640px) {
       html { font-size: 15px; }
       main {
-        padding: .65rem .75rem calc(1.25rem + env(safe-area-inset-bottom, 0));
-        gap: .6rem;
+        padding: .55rem .7rem calc(1.1rem + env(safe-area-inset-bottom, 0));
+        gap: .5rem;
       }
       header {
-        padding: .65rem .75rem;
-        padding-top: calc(.65rem + env(safe-area-inset-top, 0));
+        padding: .55rem .7rem;
+        padding-top: calc(.55rem + env(safe-area-inset-top, 0));
       }
       .header-right {
         width: 100%;
         justify-content: flex-start;
-        gap: .5rem .65rem;
-        font-size: .72rem;
+        gap: .4rem .5rem;
+        font-size: .68rem;
       }
+      .status-bar { gap: .3rem .4rem; }
+      .status-chip { padding: .1rem .32rem; font-size: .62rem; }
+      #latencyChip,
+      #feedChip { display: none; }
       #lastUpdate {
         flex: 1 1 100%;
-        font-size: .62rem;
+        font-size: .6rem;
         line-height: 1.35;
       }
       .theme-toggle { min-height: 2.25rem; }
 
       .section-title {
-        font-size: .62rem;
+        font-size: .6rem;
         flex-wrap: wrap;
         gap: .35rem;
+        margin-bottom: .3rem;
       }
       .section-title::after { display: none; }
 
-      .usd-card { padding: .85rem 1rem; }
-      .usd-col .val { font-size: 1.75rem; }
-      .usd-footer { flex-direction: column; align-items: flex-start; gap: .25rem; }
+      .usd-card { padding: .8rem .9rem; }
+      .usd-col .val { font-size: 1.85rem; }
+      .usd-footer { flex-direction: column; align-items: flex-start; gap: .25rem; font-size: .65rem; }
 
-      .chart-card { padding: .7rem .75rem; }
-      .chart-title { font-size: .78rem; line-height: 1.35; }
-      .chart-subtitle { font-size: .64rem; }
+      .chart-card { padding: .65rem .7rem; }
+      .usd-chart-hero .chart-card { min-height: 240px; }
+      .chart-title { font-size: .76rem; line-height: 1.35; }
+      .chart-subtitle { font-size: .62rem; }
       .chart-wrapper,
       .usd-chart-hero .chart-wrapper {
-        height: min(42vw, 220px);
-        min-height: 170px;
+        height: min(52vw, 240px);
+        min-height: 190px;
       }
       .chart-no-data {
-        height: min(42vw, 220px);
-        min-height: 170px;
-        font-size: .75rem;
+        height: min(52vw, 240px);
+        min-height: 190px;
+        font-size: .72rem;
         text-align: center;
         padding: 0 .5rem;
       }
+      .hist-panel,
+      .outlook-panel { padding: .55rem; }
 
-      .fx-global-strip { margin-top: .6rem; }
+      .fx-global-strip { margin-top: 0; }
       .fx-global-card { padding: .55rem .6rem; }
       .fx-global-header {
         flex-direction: column;
@@ -1289,7 +1323,7 @@
       .fx-global-sub { font-size: .52rem; white-space: normal; }
       .fx-global-chg { font-size: .58rem; white-space: normal; }
 
-      .fx-secondary-grid { grid-template-columns: 1fr; gap: .6rem; }
+      .fx-secondary-grid { grid-template-columns: 1fr; gap: .5rem; }
       .eur-card {
         display: flex;
         flex-direction: row;
@@ -1302,24 +1336,24 @@
       }
       .eur-card .fx-pair-label { margin-bottom: 0; justify-content: flex-start; }
       .eur-values { align-items: flex-end; }
-      .eur-values .eur-venta-val { font-size: 1.15rem; }
+      .eur-values .eur-venta-val { font-size: 1.2rem; }
 
       .spread-card {
-        padding: .75rem .85rem;
+        padding: .7rem .75rem;
         grid-template-columns: 1fr;
         grid-template-areas:
           "title"
           "main"
           "prices"
           "signal";
-        row-gap: .65rem;
+        row-gap: .55rem;
       }
       .spread-main {
         justify-content: space-around;
         width: 100%;
         gap: .75rem;
       }
-      .spread-val-block .val { font-size: 1.25rem; }
+      .spread-val-block .val { font-size: 1.2rem; }
       .spread-prices {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1329,10 +1363,18 @@
       .spread-price-item { text-align: center; min-width: 0; }
       .spread-signal { font-size: .64rem; line-height: 1.35; }
 
-      .press { padding: .85rem .8rem 1rem; }
+      .futures-panel { padding: .5rem .55rem .6rem; }
+      .fut-table { font-size: .64rem; }
+      .fut-table th,
+      .fut-table td { padding: .26rem .32rem; }
+      .curve-wrap { height: 120px; }
+
+      .press { padding: .85rem .75rem 1rem; }
+      .press-name { font-size: clamp(1.25rem, 6vw, 1.7rem); }
       .press-deck { grid-template-columns: 1fr; }
       .news-card { padding: .75rem .85rem; }
       .news-title { font-size: .86rem; }
+      .press-layout { gap: .85rem; }
     }
 
     @media (max-width: 380px) {
@@ -1376,7 +1418,7 @@
 
   <aside class="desk-left">
     <div class="desk-left-pin">
-    <section class="desk-panel">
+    <section class="desk-panel mob-o-spot">
       <div class="section-title">Mayorista · Spot</div>
       <div class="usd-card skeleton" id="usdCard">
         <div class="card-header">
@@ -1393,7 +1435,7 @@
       </div>
     </section>
 
-    <section class="desk-panel">
+    <section class="desk-panel mob-o-eur">
       <div class="section-title">EUR · MEP</div>
       <div class="fx-secondary-grid">
         <div class="eur-card skeleton" id="eurCard">
@@ -1409,7 +1451,7 @@
       </div>
     </section>
 
-    <section class="desk-panel futures-panel">
+    <section class="desk-panel futures-panel mob-o-futures">
       <div class="section-title">Futuros DLR · 12m</div>
       <div class="futures-meta" id="futuresMeta">Matba Rofex · venta (OF)</div>
       <div id="futuresOffline" class="futures-offline" hidden></div>
@@ -1438,8 +1480,8 @@
   </aside>
 
   <section class="desk-center">
-    <div class="section-title">Tipo de cambio mayorista · Rueda del día</div>
-    <div class="usd-chart-hero">
+    <div class="section-title mob-o-chart">Tipo de cambio mayorista · Rueda del día</div>
+    <div class="usd-chart-hero mob-o-chart">
       <div class="chart-card">
         <div class="chart-header">
           <div>
@@ -1500,13 +1542,13 @@
       </div>
     </div>
 
-    <div class="fx-global-strip">
+    <div class="fx-global-strip mob-o-fx">
       <div class="fx-global-card skeleton" id="fxGlobalCard">
         <div class="fx-global-empty">Cargando cruces internacionales...</div>
       </div>
     </div>
 
-    <section class="press" id="pressSection" aria-label="Noticias financieras">
+    <section class="press mob-o-news" id="pressSection" aria-label="Noticias financieras">
       <div class="press-masthead">
         <div class="press-kicker">Economía · Tipo de cambio · Argentina</div>
         <div class="press-name">Noticias Financieras y Políticas</div>
@@ -2123,7 +2165,10 @@
             color: th.muted,
             font: { size: compact ? 9 : 11 },
             maxRotation: 0,
-            callback: (val, idx) => slots[idx].endsWith(':00') ? slots[idx] : '',
+            callback: (val, idx) => {
+              const s = slots[idx] || '';
+              return s.endsWith(':00') || !s.includes(':') ? s : '';
+            },
           },
           grid: { color: th.grid },
         },
@@ -2175,6 +2220,7 @@
     const valid = (daySeries || [])
       .map(d => ({
         date: d.date,
+        prevClose: d.prevClose ?? null,
         ...normalizeChartPoints(filterPointsForLiveDay(d.points, d.date), d.date),
       }))
       .filter(d => d.realCount > 0);
@@ -2192,17 +2238,20 @@
     wrapper.style.display = 'block';
 
     const th = getChartTheme();
-    const slots = generateSlots(); // eje fijo 10:00–15:00; la línea avanza solo donde hay datos
+    const hasPrevClose = valid.some(d => d.prevClose != null);
+    // Eje fijo 10:00–15:00; si hay cierre anterior, la línea arranca desde ese valor
+    const slots = hasPrevClose ? [PREV_CLOSE_LABEL, ...generateSlots()] : generateSlots();
     const datasets = [];
     const allReal = [];
     const singleDay = valid.length === 1;
 
     valid.forEach((day, i) => {
       allReal.push(...day.realValues);
+      if (day.prevClose != null) allReal.push(day.prevClose);
       const color = TC_CHART_COLORS[i % TC_CHART_COLORS.length];
       datasets.push({
         label: formatStoredDay(day.date),
-        data: day.values,
+        data: hasPrevClose ? [day.prevClose ?? null, ...day.values] : day.values,
         borderColor: color,
         backgroundColor: color + (singleDay ? '44' : '33'),
         borderWidth: 2.2,
@@ -2227,10 +2276,30 @@
     fxChart = updateChartInstance(fxChart, 'fxChart', { labels: slots, datasets }, options);
 
     const lastDay = valid[valid.length - 1];
-    const lastVal = allReal[allReal.length - 1];
+    const lastVal = lastDay.realValues[lastDay.realValues.length - 1];
     const fixedNote = isChartRecordingHours() ? '' : ' · rueda cerrada';
     const totalPts = valid.reduce((n, d) => n + d.realCount, 0);
-    subtitle.textContent = `${totalPts} puntos · última $${fmt(lastVal)}${fixedNote}`;
+    const prevNote = singleDay && lastDay.prevClose != null
+      ? ` · cierre ant. $${fmt(lastDay.prevClose)}`
+      : '';
+    subtitle.textContent = `${totalPts} puntos · última $${fmt(lastVal)}${prevNote}${fixedNote}`;
+  }
+
+  const PREV_CLOSE_LABEL = 'Cierre ant.';
+  const prevCloseCache = new Map();
+
+  /** Cierre de la rueda hábil anterior a `date` (cacheado: no cambia durante el día). */
+  async function fetchPrevClose(date) {
+    if (prevCloseCache.has(date)) return prevCloseCache.get(date);
+    try {
+      const res = await fetch(`/api/tc-history/${date}/summary`, { cache: 'no-store' });
+      const json = await res.json();
+      const val = json.ok ? (json.cierreAnterior?.cierreValor ?? null) : null;
+      if (val != null) prevCloseCache.set(date, val);
+      return val;
+    } catch {
+      return null;
+    }
   }
 
   // ── Fetch FX ──
@@ -2366,10 +2435,10 @@
 
   async function buildTodayChart() {
     const today = todayARTString();
-    const points = await fetchTodayChartPoints();
+    const [points, prevClose] = await Promise.all([fetchTodayChartPoints(), fetchPrevClose(today)]);
     document.getElementById('chartTitle').textContent =
       `USD/ARS Mayorista — hoy (${formatStoredDay(today)})`;
-    buildChartCompare([{ date: today, points }]);
+    buildChartCompare([{ date: today, points, prevClose }]);
   }
 
   async function fetchHistory() {
@@ -2573,16 +2642,17 @@
     if (!histSelectedDays.length) return;
     const daySeries = await Promise.all(histSelectedDays.map(async date => {
       const today = todayARTString();
+      const prevClose = await fetchPrevClose(date);
       if (date === today) {
         const pts = await fetchTodayChartPoints();
-        return { date, points: pts };
+        return { date, points: pts, prevClose };
       }
       try {
         const res = await fetch(`/api/tc-history/${date}`, { cache: 'no-store' });
         const json = await res.json();
-        return { date, points: (json.ok && Array.isArray(json.points)) ? json.points : [] };
+        return { date, points: (json.ok && Array.isArray(json.points)) ? json.points : [], prevClose };
       } catch {
-        return { date, points: [] };
+        return { date, points: [], prevClose };
       }
     }));
     const titleEl = document.getElementById('chartTitle');

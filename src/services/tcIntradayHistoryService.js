@@ -369,12 +369,26 @@ function computeDaySummary(points) {
   };
 }
 
-async function getDaySummary(dateStr) {
-  const day = await getDay(dateStr);
-  const summary = computeDaySummary(day.points);
-  if (!summary) return { date: dateStr, pointCount: 0, allowed: day.allowed };
+/**
+ * Cierre de la rueda hábil anterior a dateStr.
+ * Toma la fecha más reciente entre el cierre oficial guardado (mismo que la
+ * tarjeta USD) y el último punto intradiario; el store puede tener huecos.
+ * Ante la misma fecha, gana el oficial.
+ */
+async function getCierreAnterior(dateStr) {
+  let official = null;
+  try {
+    const cierreStore = require('./mayoristaCierreStore');
+    const ant = cierreStore.getCierreAnterior(dateStr);
+    if (ant.cierreValor != null && ant.cierreFecha) official = ant;
+  } catch { /* opcional */ }
 
-  let cierreAnterior = null;
+  const intraday = await getIntradayCierreAnterior(dateStr);
+  if (official && (!intraday || official.cierreFecha >= intraday.cierreFecha)) return official;
+  return intraday || official;
+}
+
+async function getIntradayCierreAnterior(dateStr) {
   try {
     const weekendOrHoliday = (d) => {
       const [y, m, dayNum] = d.split('-').map(Number);
@@ -399,20 +413,19 @@ async function getDaySummary(dateStr) {
       const prevDay = await getDay(prev);
       const prevSummary = computeDaySummary(prevDay.points);
       if (prevSummary?.close != null) {
-        cierreAnterior = { cierreValor: prevSummary.close, cierreFecha: prev };
-        break;
+        return { cierreValor: prevSummary.close, cierreFecha: prev };
       }
     }
   } catch { /* sin historial previo */ }
 
-  if (!cierreAnterior) {
-    try {
-      const cierreStore = require('./mayoristaCierreStore');
-      const ant = cierreStore.getCierreAnterior(dateStr);
-      if (ant.cierreValor != null && ant.cierreFecha) cierreAnterior = ant;
-    } catch { /* opcional */ }
-  }
+  return null;
+}
 
+async function getDaySummary(dateStr) {
+  const day = await getDay(dateStr);
+  const summary = computeDaySummary(day.points);
+  const cierreAnterior = await getCierreAnterior(dateStr);
+  if (!summary) return { date: dateStr, pointCount: 0, allowed: day.allowed, cierreAnterior };
   return { date: dateStr, ...summary, cierreAnterior };
 }
 
