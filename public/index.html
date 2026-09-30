@@ -1536,7 +1536,7 @@
         <div class="reco-metric"><span class="lbl">Prob. de que baje más</span><span class="val" id="recoPLower">—</span></div>
         <div class="reco-metric"><span class="lbl">Sesgo del día</span><span class="val" id="recoDayBias">—</span></div>
         <div class="reco-metric"><span class="lbl">Ahorro esperado</span><span class="val" id="recoGain">—</span></div>
-        <div class="reco-metric"><span class="lbl">Esperar hasta</span><span class="val" id="recoUntil">—</span></div>
+        <div class="reco-metric"><span class="lbl">Riesgo de suba</span><span class="val" id="recoUpRisk">—</span></div>
       </div>
       <div class="reco-foot" id="recoFoot"></div>
     </section>
@@ -3476,17 +3476,21 @@
     const closed = d.phase === 'closed' || d.phase === 'historical';
     card.dataset.action = closed ? 'closed' : (d.action || 'indiferente');
     const prefix = d.phase === 'pre_open' ? 'Para la apertura: ' : '';
-    document.getElementById('recoAction').textContent = prefix + (d.label || '—');
+    const until = d.waitUntil ? ` · hasta ~${d.waitUntil}` : '';
+    document.getElementById('recoAction').textContent = prefix + (d.label || '—') + until;
     document.getElementById('recoTime').textContent = d.nowART
       ? `${d.nowART} ART${d.priceNow != null ? ` · $${fmt(d.priceNow)}` : ''}`
       : '';
     document.getElementById('recoReason').textContent = d.reason || '';
     document.getElementById('recoPLower').textContent = d.pLower != null ? `${Math.round(d.pLower * 100)}%` : '—';
+    document.getElementById('recoGain').title = 'Diferencia esperada entre cerrar ahora y el promedio del resto de la rueda';
+    document.getElementById('recoUpRisk').title = 'Suba máxima promedio del resto de la rueda en días parecidos';
     document.getElementById('recoDayBias').textContent = dayBiasLabel(d.pDayBear);
-    document.getElementById('recoGain').textContent = d.action === 'esperar' && d.expectedDrop > 0
-      ? `~$${fmt(d.expectedDrop)}/USD`
-      : '—';
-    document.getElementById('recoUntil').textContent = d.waitUntil || '—';
+    const gain = d.expectedSaving;
+    document.getElementById('recoGain').textContent = gain == null
+      ? '—'
+      : (Math.abs(gain) < 0.2 ? '≈ $0' : `${gain < 0 ? '−' : '~'}$${fmt(Math.abs(gain))}/USD`);
+    document.getElementById('recoUpRisk').textContent = d.upRisk != null ? `~$${fmt(d.upRisk)}` : '—';
     if (d.morningSummary) card.title = `Noticias de la mañana: ${d.morningSummary}`;
 
     const l = d.learning || {};
