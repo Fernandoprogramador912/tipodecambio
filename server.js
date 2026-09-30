@@ -22,6 +22,8 @@ const tcIntradayHistory = require('./src/services/tcIntradayHistoryService');
 const { getCierreAnterior } = require('./src/services/mayoristaCierreStore');
 const newsArchive = require('./src/services/newsArchiveService');
 const tcOutlook = require('./src/services/tcOutlookService');
+const tcDayMemory = require('./src/services/tcDayMemoryService');
+const tcTiming = require('./src/services/tcTimingService');
 const { startTcIntradayRecorder, pulseFromA3 } = require('./src/services/tcIntradayRecorderService');
 
 const app  = express();
@@ -386,6 +388,7 @@ app.post('/api/tc-outlook/estimate-run', async (req, res) => {
     const date = req.body?.date && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date)
       ? req.body.date
       : tcOutlook.todayART();
+    await captureMorningNews(date);
     const result = await tcOutlook.generateOutlook(date, {
       force: true,
       kind: 'estimate',
@@ -396,6 +399,116 @@ app.post('/api/tc-outlook/estimate-run', async (req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// --- API: memoria diaria + recomendación de timing ---
+const isDateStr = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+async function captureMorningNews(date, { force = false } = {}) {
+  try {
+    const news = await getNews();
+    const result = await tcDayMemory.captureMorning(date, news.items || [], { force });
+    if (result.captured) {
+      console.log(`[tc-memory] noticias de la mañana ${date}: ${result.morning.label} (score ${result.morning.newsScore}, ${result.storage})`);
+    }
+    return result;
+  } catch (err) {
+    console.warn('[tc-memory] Error capturando noticias de la mañana:', err.message);
+    return { captured: false, error: err.message };
+  }
+}
+
+app.get('/api/tc-reco', async (req, res) => {
+  try {
+    const date = isDateStr(req.query.date) ? req.query.date : tcDayMemory.todayART();
+    const result = await tcTiming.getRecommendation(date, {
+      log: date === tcDayMemory.todayART(),
+      at: typeof req.query.at === 'string' ? req.query.at : null,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/tc-memory', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 120);
+    const [days, learning] = await Promise.all([tcDayMemory.listRows(limit), tcDayMemory.learningStats()]);
+    res.json({ ok: true, days, learning });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/tc-memory/:date', async (req, res) => {
+  try {
+    if (!isDateStr(req.params.date)) return res.status(400).json({ ok: false, error: 'Fecha inválida' });
+    const row = await tcDayMemory.getRow(req.params.date);
+    res.json({ ok: true, found: Boolean(row), day: row });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * Tareas post-rueda (15:30 ART): resultado del día en la memoria, archivo de noticias
+ * y análisis de cierre. Idempotente: si el análisis de cierre ya existe, no se regenera.
+ */
+async function runCloseJobs(date) {
+  const summary = { date, errors: [] };
+  try {
+    const result = await tcDayMemory.recordOutcome(date);
+    summary.memory = result.recorded ? { direction: result.outcome.direction, storage: result.storage } : { reason: result.reason };
+    console.log(`[tc-memory] cierre ${date}: ${result.recorded ? `${result.outcome.direction} (${result.storage})` : result.reason}`);
+  } catch (err) {
+    summary.errors.push(`memoria: ${err.message}`);
+    console.warn('[tc-memory] Error registrando cierre:', err.message);
+  }
+  try {
+    const news = await getNews();
+    const result = await newsArchive.archiveToday(news.items || []);
+    summary.newsArchive = result.archived ? { count: result.count, storage: result.storage } : { reason: result.reason };
+    console.log(`[news-archive] ${result.archived ? `${result.count} noticias archivadas (${result.storage})` : result.reason}`);
+  } catch (err) {
+    summary.errors.push(`noticias: ${err.message}`);
+    console.warn('[news-archive] Error en cierre:', err.message);
+  }
+  if (tcOutlook.hasOpenAI()) {
+    try {
+      const stored = await tcOutlook.getStoredOutlook(date);
+      if (stored?.reportKind === 'close') {
+        summary.closeOutlook = 'ya-existia';
+      } else {
+        const outlook = await tcOutlook.generateOutlook(date, { force: true, kind: 'close', source: 'cron' });
+        summary.closeOutlook = outlook.ok ? outlook.storage : outlook.error;
+        console.log(`[tc-outlook] ${outlook.ok ? `cierre ${date} (${outlook.storage})` : outlook.error}`);
+      }
+    } catch (err) {
+      summary.errors.push(`análisis de cierre: ${err.message}`);
+      console.warn('[tc-outlook] Error análisis de cierre:', err.message);
+    }
+  }
+  return summary;
+}
+
+app.post('/api/tc-memory/morning', async (req, res) => {
+  if (!validateJobSecret(req)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  const date = isDateStr(req.body?.date) ? req.body.date : tcDayMemory.todayART();
+  const result = await captureMorningNews(date, { force: Boolean(req.body?.force) });
+  res.status(result.error ? 500 : 200).json({ ok: !result.error, ...result });
+});
+
+/** Job externo (GitHub Actions) ~15:40 ART: respaldo del cron interno si Render estaba dormido. */
+app.post('/api/tc-memory/close-run', async (req, res) => {
+  if (!validateJobSecret(req)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  const date = isDateStr(req.body?.date) ? req.body.date : tcDayMemory.todayART();
+  const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  if (date === tcDayMemory.todayART() && art.getUTCHours() < 15) {
+    return res.status(400).json({ ok: false, error: 'La rueda de hoy todavía no cerró (15:00 ART).' });
+  }
+  const result = await runCloseJobs(date);
+  res.status(result.errors.length ? 500 : 200).json({ ok: !result.errors.length, ...result });
 });
 
 // --- API: futuros ---
@@ -420,19 +533,36 @@ app.get('*', (req, res) => {
 
 /**
  * Cron liviano:
+ * - 08:55 ART: foto de noticias de la mañana (si el servidor arranca más tarde, se recupera
+ *   hasta las 15:00 usando solo titulares publicados antes de las 10:00)
  * - 09:00 ART (±2 min): estimación pre-rueda (para aciertos)
- * - 15:30 ART (±5 min): archivo de noticias + análisis de cierre
+ * - 15:30 ART: resultado del día en la memoria (también si arranca después), archivo de noticias
+ *   + análisis de cierre
  */
 function startNewsArchiveCron() {
-  let lastArchiveDate = null;
   let lastEstimateDate = null;
-  setInterval(async () => {
+  let lastMorningDate = null;
+  let lastOutcomeDate = null;
+  const tick = async () => {
     const art = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const h = art.getUTCHours();
     const m = art.getUTCMinutes();
+    const minutes = h * 60 + m;
     const today = art.toISOString().slice(0, 10);
     const dow = art.getUTCDay(); // 0=dom … 6=sáb (aprox ART vía offset)
     const isWeekday = dow >= 1 && dow <= 5;
+
+    if (isWeekday && minutes >= 8 * 60 + 55 && minutes < 15 * 60 && lastMorningDate !== today) {
+      lastMorningDate = today;
+      const result = await captureMorningNews(today);
+      if (result.error) lastMorningDate = null;
+    }
+
+    if (isWeekday && minutes >= 15 * 60 + 30 && lastOutcomeDate !== today) {
+      lastOutcomeDate = today;
+      const result = await runCloseJobs(today);
+      if (result.errors.length) lastOutcomeDate = null;
+    }
 
     if (isWeekday && h === 9 && m < 3 && lastEstimateDate !== today && tcOutlook.hasOpenAI()) {
       lastEstimateDate = today;
@@ -448,26 +578,9 @@ function startNewsArchiveCron() {
         lastEstimateDate = null;
       }
     }
-
-    if (h === 15 && m >= 30 && m < 35 && lastArchiveDate !== today) {
-      lastArchiveDate = today;
-      try {
-        const news = await getNews();
-        const result = await newsArchive.archiveToday(news.items || []);
-        console.log(`[news-archive] ${result.archived ? `${result.count} noticias archivadas (${result.storage})` : result.reason}`);
-        if (tcOutlook.hasOpenAI()) {
-          const outlook = await tcOutlook.generateOutlook(today, {
-            force: true,
-            kind: 'close',
-            source: 'cron',
-          });
-          console.log(`[tc-outlook] ${outlook.ok ? `cierre ${today} (${outlook.storage})` : outlook.error}`);
-        }
-      } catch (err) {
-        console.warn('[news-archive] Error en cron:', err.message);
-      }
-    }
-  }, 60_000);
+  };
+  setTimeout(tick, 15_000);
+  setInterval(tick, 60_000);
 }
 
 // Local: levantar servidor. Vercel: exportar el app como handler.
@@ -484,6 +597,7 @@ if (require.main === module) {
     startNewsArchiveCron();
     console.log('  Archivo de noticias: cron activo (15:30 ART)');
     console.log('  Estimación TC: cron 09:00 ART + análisis de cierre 15:30');
+    console.log('  Memoria diaria: noticias 08:55 ART + resultado 15:30 (recomendación en /api/tc-reco)');
     console.log(`  Análisis OpenAI: ${tcOutlook.hasOpenAI() ? 'activo' : 'sin OPENAI_API_KEY'}\n`);
   });
 }

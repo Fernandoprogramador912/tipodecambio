@@ -9,6 +9,7 @@ const axios = require('axios');
 const ARGENTINA_FX_CONTEXT = require('../data/argentinaFxContext');
 const tcHistory = require('./tcIntradayHistoryService');
 const newsArchive = require('./newsArchiveService');
+const dayMemory = require('./tcDayMemoryService');
 
 const STORE_FILE = path.join(__dirname, '../../data/tc-outlook.json');
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
@@ -319,6 +320,13 @@ async function buildContext(dateStr) {
     } catch { /* sin noticias */ }
   }
 
+  const memoryRow = await dayMemory.getRow(dateStr).catch(() => null);
+  const morning = memoryRow?.morning || null;
+  const [similarDays, estimateTrack] = await Promise.all([
+    dayMemory.similarDays(dateStr, morning?.newsScore).catch(() => []),
+    recentEstimateTrack(dateStr).catch(() => []),
+  ]);
+
   return {
     date: dateStr,
     sessionPhase: phaseInfo.phase,
@@ -327,8 +335,36 @@ async function buildContext(dateStr) {
     recentSessions: recent,
     hourlyPattern: insights?.bestWindows || [],
     daysAnalyzedPattern: insights?.daysAnalyzed || 0,
+    morningNews: morning
+      ? {
+        newsScore: morning.newsScore,
+        label: morning.label,
+        counts: morning.counts,
+        summary: morning.summary,
+        headlines: (morning.headlines || []).slice(0, 12).map(h => ({ title: h.title, effect: h.effect, weight: h.weight })),
+      }
+      : null,
+    similarDays,
+    estimateTrack,
     news,
   };
+}
+
+/** Últimas estimaciones vs lo que pasó, para que el modelo calibre (y no repita sesgo por inercia). */
+async function recentEstimateTrack(dateStr) {
+  const rows = (await listStored()).filter(r => r.estimate && r.date < dateStr).slice(0, 8);
+  const out = [];
+  for (const row of rows) {
+    const score = await scoreOne({ date: row.date, analysis: row.estimate });
+    out.push({
+      date: row.date,
+      predicted: row.estimate.todayBias,
+      confidence: row.estimate.confidence,
+      actual: score?.today?.actual || null,
+      verdict: score?.today?.verdict || 'pendiente',
+    });
+  }
+  return out;
 }
 
 function parseAnalysis(raw) {
@@ -416,6 +452,15 @@ Sesgo alcista = el peso se debilita (TC sube). Bajista = el peso se fortalece o 
 El campo scenarios es OBLIGATORIO (mínimo 2, máximo 4).
 ${todaySummaryHint}
 Si aparece lastPriceSoFar, NO es cierre oficial.
+
+REGLAS PARA todayBias (lo usa alguien que decide a qué hora comprar dólares):
+- La base principal es morningNews (titulares de hoy ya clasificados) y, con la rueda abierta, cómo viene el precio vs today.cierreAnterior.
+- Deuda, reservas, inflación o "incertidumbre" estructurales NO justifican un sesgo por sí solos: solo cuentan si hay una noticia concreta de hoy sobre eso.
+- Sin evidencia concreta en contra (que tenés que nombrar en drivers): morningNews.newsScore <= -0.2 → bajista; >= 0.2 → alcista; en el medio → lateral.
+- No hay sesgo alcista por defecto. Mirá estimateTrack: si venís repitiendo el mismo sesgo con errores, corregí.
+- Usá similarDays (qué hizo el TC otros días con noticias parecidas) para calibrar.
+- confidence > 70 solo si noticias, precio y días similares apuntan en la misma dirección.
+- En drivers citá los titulares concretos que sostienen el sesgo.
 ${ARGENTINA_FX_CONTEXT}`,
     },
     {
@@ -937,6 +982,7 @@ module.exports = {
   getOutlook,
   getOutlookHistory,
   getRunPolicy,
+  getStoredOutlook: getStored,
   hasOpenAI,
   todayART,
 };

@@ -218,6 +218,49 @@
 
     .fx-global-strip { margin-top: 0; min-width: 0; }
 
+    /* ── Recomendación ESPERAR / CERRAR ── */
+    .reco-card {
+      --reco-color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--reco-color);
+      border-radius: var(--radius);
+      padding: .6rem .8rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: .45rem 1rem;
+      align-items: center;
+      min-width: 0;
+    }
+    .reco-card[data-action="esperar"] { --reco-color: var(--green); }
+    .reco-card[data-action="cerrar"] { --reco-color: var(--amber); }
+    .reco-card[data-action="indiferente"] { --reco-color: var(--blue); }
+    .reco-kicker {
+      font-size: .62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted);
+    }
+    .reco-action {
+      font-family: var(--font); font-size: 1.45rem; font-weight: 800;
+      letter-spacing: .02em; color: var(--reco-color); line-height: 1.15;
+    }
+    .reco-reason { font-size: .78rem; color: var(--text); line-height: 1.4; margin-top: .15rem; }
+    .reco-metrics {
+      display: grid; grid-template-columns: repeat(2, minmax(0, auto));
+      gap: .35rem 1rem; align-self: stretch; align-content: center;
+    }
+    .reco-metric { display: flex; flex-direction: column; gap: .05rem; }
+    .reco-metric .lbl {
+      font-size: .55rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    }
+    .reco-metric .val {
+      font-family: var(--font); font-size: 1rem; font-weight: 800;
+      font-variant-numeric: tabular-nums; color: var(--text);
+    }
+    .reco-foot {
+      grid-column: 1 / -1; font-size: .62rem; color: var(--muted);
+      border-top: 1px solid var(--border); padding-top: .35rem; line-height: 1.4;
+    }
+
     /* ── Fila secundaria: EUR + Spread MEP ── */
     .fx-secondary-grid {
       display: grid;
@@ -1219,10 +1262,11 @@
       .desk-left-pin { position: static; }
       .mob-o-spot { order: 1; }
       .mob-o-chart { order: 2; }
-      .mob-o-eur { order: 3; }
-      .mob-o-futures { order: 4; }
-      .mob-o-fx { order: 5; }
-      .mob-o-news { order: 6; }
+      .mob-o-reco { order: 3; }
+      .mob-o-eur { order: 4; }
+      .mob-o-futures { order: 5; }
+      .mob-o-fx { order: 6; }
+      .mob-o-news { order: 7; }
       .usd-chart-hero .usd-card { height: auto; }
       .usd-chart-hero .chart-card { min-height: 260px; }
       .fut-table-wrap { max-height: none; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -1261,6 +1305,8 @@
       }
       .status-bar { gap: .3rem .4rem; }
       .status-chip { padding: .1rem .32rem; font-size: .62rem; }
+      .reco-card { grid-template-columns: 1fr; }
+      .reco-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #latencyChip,
       #feedChip { display: none; }
       #lastUpdate {
@@ -1480,6 +1526,20 @@
   </aside>
 
   <section class="desk-center">
+    <section class="reco-card mob-o-reco" id="recoCard" data-action="loading" aria-live="polite">
+      <div class="reco-main">
+        <div class="reco-kicker">¿Cierro cambio ahora? · <span id="recoTime">—</span></div>
+        <div class="reco-action" id="recoAction">…</div>
+        <div class="reco-reason" id="recoReason">Calculando recomendación…</div>
+      </div>
+      <div class="reco-metrics">
+        <div class="reco-metric"><span class="lbl">Prob. de que baje más</span><span class="val" id="recoPLower">—</span></div>
+        <div class="reco-metric"><span class="lbl">Sesgo del día</span><span class="val" id="recoDayBias">—</span></div>
+        <div class="reco-metric"><span class="lbl">Ahorro esperado</span><span class="val" id="recoGain">—</span></div>
+        <div class="reco-metric"><span class="lbl">Esperar hasta</span><span class="val" id="recoUntil">—</span></div>
+      </div>
+      <div class="reco-foot" id="recoFoot"></div>
+    </section>
     <div class="section-title mob-o-chart">Tipo de cambio mayorista · Rueda del día</div>
     <div class="usd-chart-hero mob-o-chart">
       <div class="chart-card">
@@ -3401,6 +3461,55 @@
     `;
   }
 
+  // ── Recomendación ESPERAR / CERRAR ──
+  const RECO_REFRESH_MS = 5 * 60 * 1000;
+
+  function dayBiasLabel(pBear) {
+    if (pBear == null) return '—';
+    if (pBear >= 0.55) return `Bajista ${Math.round(pBear * 100)}%`;
+    if (pBear <= 0.45) return `Alcista ${Math.round((1 - pBear) * 100)}%`;
+    return 'Neutral';
+  }
+
+  function renderReco(d) {
+    const card = document.getElementById('recoCard');
+    const closed = d.phase === 'closed' || d.phase === 'historical';
+    card.dataset.action = closed ? 'closed' : (d.action || 'indiferente');
+    const prefix = d.phase === 'pre_open' ? 'Para la apertura: ' : '';
+    document.getElementById('recoAction').textContent = prefix + (d.label || '—');
+    document.getElementById('recoTime').textContent = d.nowART
+      ? `${d.nowART} ART${d.priceNow != null ? ` · $${fmt(d.priceNow)}` : ''}`
+      : '';
+    document.getElementById('recoReason').textContent = d.reason || '';
+    document.getElementById('recoPLower').textContent = d.pLower != null ? `${Math.round(d.pLower * 100)}%` : '—';
+    document.getElementById('recoDayBias').textContent = dayBiasLabel(d.pDayBear);
+    document.getElementById('recoGain').textContent = d.action === 'esperar' && d.expectedDrop > 0
+      ? `~$${fmt(d.expectedDrop)}/USD`
+      : '—';
+    document.getElementById('recoUntil').textContent = d.waitUntil || '—';
+    if (d.morningSummary) card.title = `Noticias de la mañana: ${d.morningSummary}`;
+
+    const l = d.learning || {};
+    const track = l.recoEvaluated
+      ? `Recomendaciones evaluadas: ${l.recoHits}/${l.recoEvaluated} acertadas (${l.recoHitPct}%).`
+      : 'Todavía sin recomendaciones evaluadas (se miden al cierre de cada rueda).';
+    document.getElementById('recoFoot').textContent =
+      `Aprendiendo: ${d.sessionsUsed ?? '—'} ruedas de precios · ${l.newsDays ?? 0} días con noticias guardadas. ${track} Orientativo, no garantiza el movimiento.`;
+  }
+
+  async function fetchReco() {
+    try {
+      const res = await fetch('/api/tc-reco');
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || 'sin datos');
+      renderReco(d);
+    } catch (err) {
+      document.getElementById('recoCard').dataset.action = 'closed';
+      document.getElementById('recoAction').textContent = 'Sin recomendación';
+      document.getElementById('recoReason').textContent = `No se pudo calcular: ${err.message}`;
+    }
+  }
+
   // ── Init & loops ──
   async function init() {
     updateStatusBarClock();
@@ -3412,7 +3521,7 @@
     }
     await syncTcHistoryToServer();
     await buildTodayChart();
-    await Promise.all([fetchFX(), fetchNews(), fetchFutures()]);
+    await Promise.all([fetchFX(), fetchNews(), fetchFutures(), fetchReco()]);
     syncLeftPinSticky();
   }
 
@@ -3456,6 +3565,10 @@
       }
       fetchNews();
     }, NEWS_REFRESH_MS);
+    setInterval(() => {
+      const { minOfDay } = artPartsNow();
+      if (minOfDay >= 8 * 60 && minOfDay <= 15 * 60 + 35) fetchReco();
+    }, RECO_REFRESH_MS);
   });
 </script>
 </body>

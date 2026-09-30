@@ -102,6 +102,9 @@ Ejecutá una vez en el SQL Editor los scripts:
 - `scripts/tc-intraday-supabase.sql`
 - `scripts/tc-news-archive-supabase.sql`
 - `scripts/tc-outlook-supabase.sql` (análisis de escenario / cierre)
+- `scripts/tc-day-memory-supabase.sql` (memoria diaria para la recomendación ESPERAR / CERRAR)
+
+**Memoria diaria y recomendación de timing:** a las 08:55 ART se guarda la foto de titulares de la mañana clasificados (alcista/bajista) en `tc_day_memory`; a las 15:30 se registra el resultado del día vs cierre anterior y se evalúa cada recomendación emitida. La tarjeta "¿Cierro cambio ahora?" consulta `GET /api/tc-reco` (acepta `?date=YYYY-MM-DD&at=HH:MM` para simular). Sin la tabla, se usa `data/tc-day-memory.json` (en Render se pierde al reiniciar). Como Render free se duerme, dos GitHub Actions lo despiertan y disparan las tareas: `daily-tc-estimate.yml` (09:00 ART: noticias de la mañana + estimación) y `daily-tc-close.yml` (15:40 ART: `POST /api/tc-memory/close-run`, resultado del día + archivo de noticias + análisis de cierre). Ambos usan los secrets `APP_URL` y `PROJECTION_JOB_SECRET`.
 
 Cada rueda (10:00–15:00 ART) guarda puntos en `tc_intraday_days` cada **5 minutos**. En el dashboard podés elegir uno o más días (máx. 4) para comparar curvas, ver resumen estadístico (apertura/cierre/mín/máx/horarios) y consultar el **patrón histórico por franja horaria** para decidir en qué momento cerrar cambio.
 

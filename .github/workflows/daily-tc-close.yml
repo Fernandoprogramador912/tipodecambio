@@ -1,18 +1,19 @@
-# Estimación pre-rueda ~9:00 ART (12:00 UTC), días hábiles.
-# Antes de estimar, el servidor guarda la foto de noticias de la mañana en la memoria diaria.
+# Cierre de rueda ~15:40 ART (18:40 UTC), días hábiles: resultado del día en la memoria
+# (evalúa las recomendaciones ESPERAR/CERRAR), archivo de noticias y análisis de cierre.
+# Respaldo del cron interno por si Render (plan free) estaba dormido a las 15:30.
 # Requiere secrets: APP_URL, PROJECTION_JOB_SECRET (mismo header x-job-secret)
-name: Daily TC estimate
+name: Daily TC close
 
 on:
   schedule:
-    - cron: '0 12 * * 1-5'
+    - cron: '40 18 * * 1-5'
   workflow_dispatch:
 
 jobs:
-  run-estimate:
+  run-close:
     runs-on: ubuntu-latest
     steps:
-      - name: Run pre-session estimate
+      - name: Run post-session jobs
         run: |
           if [ -z "${{ secrets.APP_URL }}" ]; then
             echo "Configurá APP_URL"
@@ -34,10 +35,10 @@ jobs:
           done
           echo ""
 
-          curl -fsS --max-time 120 -X POST "$BASE/api/tc-outlook/estimate-run" \
+          curl -fsS --max-time 120 -X POST "$BASE/api/tc-memory/close-run" \
             -H "x-job-secret: ${{ secrets.PROJECTION_JOB_SECRET }}" \
             -H "content-type: application/json" \
-            -d '{"force":true}' \
+            -d '{}' \
             | head -c 2000
           echo ""
           echo "OK $(date -u)"
