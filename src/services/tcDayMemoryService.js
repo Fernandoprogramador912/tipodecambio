@@ -19,7 +19,9 @@ const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SUPABASE_TABLE = process.env.SUPABASE_TC_MEMORY_TABLE || 'tc_day_memory';
-let supabaseUsable = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const SUPABASE_CONFIGURED = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const MISSING_TABLE_RETRY_MS = 5 * 60 * 1000;
+let supabaseRetryAt = 0; // si falta la tabla, reintentar más tarde (puede crearse con el server corriendo)
 
 const OPEN_MIN = 10 * 60;
 const CLOSE_MIN = 15 * 60;
@@ -70,13 +72,13 @@ async function supabaseRequest(method, pathSuffix, data, extraHeaders = {}) {
 }
 
 async function withStorage(supabaseFn, localFn) {
-  if (supabaseUsable) {
+  if (SUPABASE_CONFIGURED && Date.now() >= supabaseRetryAt) {
     try {
       return await supabaseFn();
     } catch (err) {
       const code = err.response?.data?.code;
       if (err.response?.status === 404 || code === 'PGRST205' || code === '42P01') {
-        supabaseUsable = false;
+        supabaseRetryAt = Date.now() + MISSING_TABLE_RETRY_MS;
         console.warn(`[tc-memory] Tabla ${SUPABASE_TABLE} no existe en Supabase; uso archivo local (ver scripts/tc-day-memory-supabase.sql).`);
       } else {
         console.warn('[tc-memory] Supabase falló, uso archivo local:', err.message);
