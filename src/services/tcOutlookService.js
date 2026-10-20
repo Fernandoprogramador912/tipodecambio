@@ -975,8 +975,17 @@ async function listStored() {
     .map(date => unwrapStored(date, store[date].analysis, store[date].generatedAt, 'local-file'));
 }
 
-async function getOutlookHistory() {
-  const rows = (await listStored()).filter(r => r.estimate);
+/**
+ * @param {{ from?: string, to?: string }} opts  Fechas YYYY-MM-DD inclusive
+ */
+async function getOutlookHistory({ from = null, to = null } = {}) {
+  const startFloor = outlookStartDate();
+  const fromDate = isValidOutlookDate(from) && from >= startFloor ? from : startFloor;
+  const toDate = isValidOutlookDate(to) ? to : null;
+
+  let rows = (await listStored()).filter(r => r.estimate);
+  rows = rows.filter(r => r.date >= fromDate && (!toDate || r.date <= toDate));
+
   const index = await tcHistory.listDays();
   const dates = (index.days || []).map(d => d.date).sort();
   const need = new Set();
@@ -1010,7 +1019,18 @@ async function getOutlookHistory() {
       score,
     });
   }
-  return { ok: true, days: scored, stats: tally(scored), startDate: outlookStartDate() };
+  return {
+    ok: true,
+    days: scored,
+    stats: tally(scored),
+    startDate: startFloor,
+    from: fromDate,
+    to: toDate || (scored[0]?.date || null),
+  };
+}
+
+function isValidOutlookDate(dateStr) {
+  return typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
 }
 
 module.exports = {

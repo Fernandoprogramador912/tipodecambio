@@ -341,7 +341,9 @@ app.post('/api/news-archive/today', async (req, res) => {
 // --- API: análisis de escenario TC (OpenAI) ---
 app.get('/api/tc-outlook/history', async (req, res) => {
   try {
-    const result = await tcOutlook.getOutlookHistory();
+    const from = req.query.from && /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : null;
+    const to = req.query.to && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : null;
+    const result = await tcOutlook.getOutlookHistory({ from, to });
     res.json(result);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

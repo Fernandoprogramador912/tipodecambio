@@ -721,6 +721,22 @@
     }
     .outlook-hist-table th { color: var(--muted); font-weight: 600; font-size: .62rem; text-transform: uppercase; }
     .outlook-stats { font-size: .7rem; color: var(--muted); margin-top: .35rem; }
+    .outlook-hist-filters {
+      display: flex; flex-wrap: wrap; align-items: end; gap: .45rem .55rem;
+      margin: 0 0 .55rem; padding: .45rem .5rem;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .outlook-hist-filter {
+      display: flex; flex-direction: column; gap: .15rem;
+      font-size: .58rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--muted);
+    }
+    .outlook-hist-filter input[type="date"] {
+      font: 600 .78rem var(--font-mono); color: var(--text);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: .28rem .4rem; min-height: 2rem;
+    }
+    .outlook-hist-presets { display: flex; flex-wrap: wrap; gap: .3rem; }
     .outlook-hist-compact {
       display: flex; flex-direction: column; gap: 0;
       border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
@@ -1594,7 +1610,24 @@
           <div class="outlook-head">
             <div>
               <div class="outlook-title">Historial de estimaciones</div>
-              <div class="outlook-title-sub">Solo predicciones pre-rueda · tocá un día para ver el detalle</div>
+              <div class="outlook-title-sub">Elegí el rango de fechas · tocá un día para ver el detalle</div>
+            </div>
+          </div>
+          <div class="outlook-hist-filters" id="outlookHistFilters">
+            <label class="outlook-hist-filter">
+              <span>Desde</span>
+              <input type="date" id="outlookHistFrom" />
+            </label>
+            <label class="outlook-hist-filter">
+              <span>Hasta</span>
+              <input type="date" id="outlookHistTo" />
+            </label>
+            <button type="button" class="chart-action-btn" id="btnOutlookHistApply">Aplicar</button>
+            <div class="outlook-hist-presets">
+              <button type="button" class="chart-action-btn" data-outlook-range="7">7d</button>
+              <button type="button" class="chart-action-btn" data-outlook-range="15">15d</button>
+              <button type="button" class="chart-action-btn" data-outlook-range="30">30d</button>
+              <button type="button" class="chart-action-btn" data-outlook-range="all">Todo</button>
             </div>
           </div>
           <div id="outlookHistBody"><span class="hist-loading">Cargando historial...</span></div>
@@ -3026,15 +3059,72 @@
     return t.length > max ? t.slice(0, max - 1) + '…' : t;
   }
 
+  const OUTLOOK_HIST_RANGE_KEY = 'tcAR_outlookHistRange';
+  let outlookHistRange = (() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(OUTLOOK_HIST_RANGE_KEY) || 'null');
+      if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw.from || '') && /^\d{4}-\d{2}-\d{2}$/.test(raw.to || '')) return raw;
+    } catch { /* ignore */ }
+    return null;
+  })();
+
+  function addDaysYmd(ymd, days) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function defaultOutlookHistRange() {
+    const to = outlookDate();
+    return { from: addDaysYmd(to, -30), to };
+  }
+
+  function syncOutlookHistFilterInputs(range) {
+    const fromEl = document.getElementById('outlookHistFrom');
+    const toEl = document.getElementById('outlookHistTo');
+    if (!fromEl || !toEl) return;
+    const r = range || outlookHistRange || defaultOutlookHistRange();
+    fromEl.value = r.from;
+    toEl.value = r.to;
+    fromEl.min = '2026-08-21';
+    toEl.min = '2026-08-21';
+    fromEl.max = outlookDate();
+    toEl.max = outlookDate();
+  }
+
+  function setOutlookHistRange(from, to, { persist = true } = {}) {
+    let a = from;
+    let b = to;
+    if (a > b) [a, b] = [b, a];
+    outlookHistRange = { from: a, to: b };
+    if (persist) localStorage.setItem(OUTLOOK_HIST_RANGE_KEY, JSON.stringify(outlookHistRange));
+    syncOutlookHistFilterInputs(outlookHistRange);
+  }
+
+  function applyOutlookHistPreset(kind) {
+    const to = outlookDate();
+    if (kind === 'all') {
+      setOutlookHistRange('2026-08-21', to);
+    } else {
+      const n = Number(kind) || 30;
+      setOutlookHistRange(addDaysYmd(to, -(n - 1)), to);
+    }
+    loadOutlookHistoryList();
+  }
+
   async function loadOutlookHistoryList() {
     const host = document.getElementById('outlookHistBody');
     if (!host) return;
+    if (!outlookHistRange) setOutlookHistRange(...Object.values(defaultOutlookHistRange()), { persist: false });
+    syncOutlookHistFilterInputs(outlookHistRange);
     host.innerHTML = '<span class="hist-loading">Cargando historial...</span>';
     try {
-      const res = await fetch('/api/tc-outlook/history', { cache: 'no-store' });
+      const q = new URLSearchParams({ from: outlookHistRange.from, to: outlookHistRange.to });
+      const res = await fetch(`/api/tc-outlook/history?${q}`, { cache: 'no-store' });
       const data = await res.json();
       if (!data.ok || !data.days?.length) {
-        host.innerHTML = '<div class="outlook-stats">Todavía no hay estimaciones guardadas.</div>';
+        host.innerHTML = `<div class="outlook-stats">No hay estimaciones entre ${formatStoredDay(outlookHistRange.from)} y ${formatStoredDay(outlookHistRange.to)}.</div>`;
         return;
       }
       const biasShort = { alcista: 'Alcista', bajista: 'Bajista', lateral: 'Lateral' };
@@ -3062,6 +3152,7 @@
       host.innerHTML = `
         <div class="outlook-stats" style="margin:0 0 .4rem">
           ${data.days.length} estimación${data.days.length === 1 ? '' : 'es'}
+          · ${formatStoredDay(outlookHistRange.from)} → ${formatStoredDay(outlookHistRange.to)}
           · Acierto día: ${todayRate}${pendingNote}
           · Acierto 2-5d: ${nextRate}
         </div>
@@ -3219,6 +3310,16 @@
   document.getElementById('btnAnalysis').addEventListener('click', toggleAnalysisPanel);
   document.getElementById('btnOutlookHist').addEventListener('click', toggleOutlookHistPanel);
   document.getElementById('btnOutlookRun').addEventListener('click', runOutlook);
+  document.getElementById('btnOutlookHistApply')?.addEventListener('click', () => {
+    const from = document.getElementById('outlookHistFrom')?.value;
+    const to = document.getElementById('outlookHistTo')?.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '')) return;
+    setOutlookHistRange(from, to);
+    loadOutlookHistoryList();
+  });
+  document.querySelectorAll('[data-outlook-range]').forEach(btn => {
+    btn.addEventListener('click', () => applyOutlookHistPreset(btn.dataset.outlookRange));
+  });
 
   // ── Fetch Noticias ──
   async function fetchNews() {
