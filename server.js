@@ -5,7 +5,7 @@ const cors    = require('cors');
 const path    = require('path');
 
 const { getRates }           = require('./src/services/exchangeService');
-const { getNews }            = require('./src/services/newsService');
+const { getNews, getNewsForDashboard } = require('./src/services/newsService');
 const { calculateProjection }                         = require('./src/services/projectionService');
 const {
   saveProjection,
@@ -295,7 +295,8 @@ app.get('/api/projection/history', async (req, res) => {
 // --- API: noticias ---
 app.get('/api/news', async (req, res) => {
   try {
-    const news = await getNews();
+    // Solo medios sin paywall fuerte; Clarín/iPro/LN/Cronista quedan para el análisis interno
+    const news = await getNewsForDashboard();
     res.json({ ok: true, ...news, fetchedAt: new Date().toISOString() });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });

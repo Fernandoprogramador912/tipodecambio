@@ -134,8 +134,8 @@ async function listRows(limit = 60) {
 
 // ── Noticias de la mañana ──
 
-const BEARISH_RE = /\b(baja|bajan|cae|caen|cay[oó]|retrocede|afloja|liquidaci[oó]n|ingreso de d[oó]lares|compr[oó].{0,20}reservas|desembolso|super[aá]vit|riesgo pa[ií]s (baja|baj[oó]|cae|perfora)|bonos (suben|se recuperan)|calma|alivio|interviene|techo|precio m[aá]ximo|controlar el d[oó]lar)\b/i;
-const BULLISH_RE = /\b(sube|suben|salta|dispara|trepa|presi[oó]n|demanda de d[oó]lares|reservas caen|vencimientos?|incertidumbre|tensi[oó]n|devaluaci[oó]n|riesgo pa[ií]s (sube|salta))\b/i;
+const BEARISH_RE = /\b(baja|bajan|cae|caen|cay[oó]|retrocede|afloja|liquidaci[oó]n|ingreso de d[oó]lares|desembolso|super[aá]vit comercial|r[eé]cord export|riesgo pa[ií]s (baja|baj[oó]|cae|perfora)|bonos (suben|se recuperan)|calma|alivio|vende d[oó]lares|interviene|techo|precio m[aá]ximo|controlar el d[oó]lar)\b/i;
+const BULLISH_RE = /\b(salta|dispara|trepa|presi[oó]n cambiaria|demanda de d[oó]lares|reservas (caen|netas negativas)|vencimientos? de deuda|devaluaci[oó]n|riesgo pa[ií]s (sube|subi[oó]|salta)|sangr[ií]a|salto del d[oó]lar)\b/i;
 
 function heuristicEffect(title) {
   const bear = BEARISH_RE.test(title);
@@ -157,18 +157,18 @@ async function classifyWithOpenAI(headlines) {
         content: `Sos un trader de tipo de cambio mayorista USD/ARS (rueda 10:00-15:00 ART).
 Para cada titular, decidí qué efecto tendría HOY sobre el dólar mayorista:
 "alcista" = el TC sube (peso se debilita), "bajista" = el TC baja (peso se fortalece), "neutro" = sin efecto claro en el día.
-Juzgá la noticia concreta, no la situación estructural de Argentina.
-Guía del mercado argentino:
-- Gobierno/Tesoro/BCRA interviniendo, vendiendo dólares, marcando techo o "precio máximo", "el foco es controlar el dólar" → bajista (contiene el TC).
-- Riesgo país baja, bonos suben, "alivio", mercado tranquilo → bajista leve.
-- Riesgo país sube, bonos caen, tensión, rumores de devaluación o de cambio de bandas → alcista.
-- BCRA/Tesoro compra dólares en el mercado → alcista leve (suma demanda); "reservas caen" sin otra acción → neutro o alcista leve.
-- Liquidación fuerte del agro, desembolsos (FMI, organismos, colocación de deuda) → bajista.
-- "El dólar cedió/bajó ayer" → bajista leve (inercia); "el dólar subió ayer" → alcista leve.
-- Inflación/IPC/actividad: neutro en el día salvo que el dato se publique hoy y sorprenda.
-- Política sin consecuencia de mercado (viajes, agenda, cargos) → neutro.
-weight: 1 = leve, 2 = moderado, 3 = fuerte (ej. intervención oficial, liquidación del agro, desembolsos, cambios de régimen, datos del día).
-Respondé SOLO JSON: {"items":[{"i":0,"effect":"alcista|bajista|neutro","weight":1,"reason":"máx 12 palabras"}],"summary":"1-2 oraciones sobre el tono de la mañana para el dólar"}`,
+Juzgá la noticia concreta del día, no el clima estructural de Argentina.
+IMPORTANTE (aprendizaje real de semanas recientes): etiquetar "alcista" de más falló mucho (la rueda terminó lateral o bajista). En duda → "neutro". Preferí "mixto/neutro" a forzar alcista.
+Guía:
+- Superávit comercial, récord de exportaciones, liquidación del agro, desembolsos → bajista.
+- Gobierno/Tesoro/BCRA vendiendo dólares, techo, "controlar el dólar" → bajista.
+- Riesgo país SUBE HOY / bonos caen HOY / "sangría" / "salto del dólar" → alcista (weight 2).
+- Nota explicativa o histórica de riesgo país / "qué significa" / recorrido → neutro (weight 1).
+- BCRA "compra dólares" o Milei celebrando compras: neutro o bajista leve (acumulación/contención), NO alcista fuerte.
+- Acciones caen sin mención al dólar → neutro.
+- Inflación/actividad/política de agenda → neutro salvo dato sorpresa de hoy.
+weight: 1=leve, 2=moderado (dato o movimiento de HOY), 3=fuerte (intervención, desembolso, cambio de régimen). Máximo un weight 3.
+Respondé SOLO JSON: {"items":[{"i":0,"effect":"alcista|bajista|neutro","weight":1,"reason":"máx 12 palabras"}],"summary":"1-2 oraciones sobre el tono de la mañana para el dólar mayorista"}`,
       },
       { role: 'user', content: list },
     ],
@@ -181,6 +181,10 @@ Respondé SOLO JSON: {"items":[{"i":0,"effect":"alcista|bajista|neutro","weight"
   return JSON.parse(content);
 }
 
+/**
+ * Umbral asimétrico: "alcista" venía sobrediagnosticado (1/6 aciertos duros).
+ * Se pide más evidencia para marcar alcista que para bajista.
+ */
 function scoreHeadlines(headlines) {
   let num = 0;
   let den = 0;
@@ -192,8 +196,32 @@ function scoreHeadlines(headlines) {
     counts[h.effect] = (counts[h.effect] || 0) + 1;
   }
   const score = den ? +(num / den).toFixed(2) : 0;
-  const label = score <= -0.2 ? 'bajista' : (score >= 0.2 ? 'alcista' : 'mixto');
+  const label = score <= -0.2 ? 'bajista' : (score >= 0.35 ? 'alcista' : 'mixto');
   return { score, label, counts };
+}
+
+/** Diversifica titulares por medio (máx. 3 por fuente) para no sesgar a Infobae/iPro. */
+function pickHeadlinesDiverse(items, limit = MAX_HEADLINES, maxPerSource = 3) {
+  const sorted = [...items].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const out = [];
+  const counts = {};
+  const rest = [];
+  for (const n of sorted) {
+    const src = n.source || '—';
+    const c = counts[src] || 0;
+    if (c < maxPerSource) {
+      out.push(n);
+      counts[src] = c + 1;
+    } else {
+      rest.push(n);
+    }
+    if (out.length >= limit) break;
+  }
+  for (const n of rest) {
+    if (out.length >= limit) break;
+    out.push(n);
+  }
+  return out;
 }
 
 /**
@@ -207,14 +235,14 @@ async function captureMorning(dateStr, newsItems = [], { force = false } = {}) {
   }
 
   const cutoffMs = Date.parse(`${dateStr}T13:00:00Z`);
-  const pool = (newsItems || [])
+  const eligible = (newsItems || [])
     .filter(n => n?.title)
     .filter(n => {
       const t = Date.parse(n.pubDate);
       return !Number.isFinite(t) || t <= cutoffMs;
     })
-    .filter(n => n.impact === 'muy_alto' || n.impact === 'alto' || n.impact === 'medio' || (n.score || 0) >= 3)
-    .slice(0, MAX_HEADLINES)
+    .filter(n => n.impact === 'muy_alto' || n.impact === 'alto' || n.impact === 'medio' || (n.score || 0) >= 3);
+  const pool = pickHeadlinesDiverse(eligible, MAX_HEADLINES, 3)
     .map(n => ({ title: n.title, source: n.source, impact: n.impact, pubDate: n.pubDate, link: n.link }));
 
   if (!pool.length) return { captured: false, reason: 'no-news', date: dateStr };

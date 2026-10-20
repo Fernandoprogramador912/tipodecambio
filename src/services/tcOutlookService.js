@@ -322,9 +322,10 @@ async function buildContext(dateStr) {
 
   const memoryRow = await dayMemory.getRow(dateStr).catch(() => null);
   const morning = memoryRow?.morning || null;
-  const [similarDays, estimateTrack] = await Promise.all([
+  const [similarDays, estimateTrack, newsCalibration] = await Promise.all([
     dayMemory.similarDays(dateStr, morning?.newsScore).catch(() => []),
     recentEstimateTrack(dateStr).catch(() => []),
+    newsLabelCalibration(dateStr).catch(() => null),
   ]);
 
   return {
@@ -341,12 +342,40 @@ async function buildContext(dateStr) {
         label: morning.label,
         counts: morning.counts,
         summary: morning.summary,
-        headlines: (morning.headlines || []).slice(0, 12).map(h => ({ title: h.title, effect: h.effect, weight: h.weight })),
+        headlines: (morning.headlines || []).slice(0, 12).map(h => ({ title: h.title, effect: h.effect, weight: h.weight, source: h.source })),
       }
       : null,
     similarDays,
     estimateTrack,
+    newsCalibration,
     news,
+  };
+}
+
+/**
+ * Cuánto acertó históricamente la etiqueta de noticias de la mañana vs el cierre.
+ * Sirve para que el modelo no confíe ciegamente en "alcista".
+ */
+async function newsLabelCalibration(dateStr) {
+  const rows = await dayMemory.listRows(60);
+  const by = { alcista: { n: 0, hard: 0, lateral: 0 }, bajista: { n: 0, hard: 0, lateral: 0 }, mixto: { n: 0, hard: 0, lateral: 0 } };
+  for (const r of rows) {
+    if (!r.morning?.label || !r.outcome?.direction || r.date >= dateStr) continue;
+    const lab = r.morning.label;
+    const bucket = by[lab] || (by[lab] = { n: 0, hard: 0, lateral: 0 });
+    bucket.n++;
+    const pred = lab === 'mixto' ? 'lateral' : lab;
+    if (pred === r.outcome.direction) bucket.hard++;
+    if (r.outcome.direction === 'lateral') bucket.lateral++;
+  }
+  const fmt = (b) => (b.n
+    ? { n: b.n, hardHitPct: Math.round((b.hard / b.n) * 100), endedLateralPct: Math.round((b.lateral / b.n) * 100) }
+    : null);
+  return {
+    whenNewsAlcista: fmt(by.alcista),
+    whenNewsBajista: fmt(by.bajista),
+    whenNewsMixto: fmt(by.mixto),
+    note: 'Si whenNewsAlcista.hardHitPct es bajo, preferí lateral salvo newsScore muy alto y titulares concretos de HOY.',
   };
 }
 
@@ -454,13 +483,17 @@ ${todaySummaryHint}
 Si aparece lastPriceSoFar, NO es cierre oficial.
 
 REGLAS PARA todayBias (lo usa alguien que decide a qué hora comprar dólares):
-- La base principal es morningNews (titulares de hoy ya clasificados) y, con la rueda abierta, cómo viene el precio vs today.cierreAnterior.
-- Deuda, reservas, inflación o "incertidumbre" estructurales NO justifican un sesgo por sí solos: solo cuentan si hay una noticia concreta de hoy sobre eso.
-- Sin evidencia concreta en contra (que tenés que nombrar en drivers): morningNews.newsScore <= -0.2 → bajista; >= 0.2 → alcista; en el medio → lateral.
-- No hay sesgo alcista por defecto. Mirá estimateTrack: si venís repitiendo el mismo sesgo con errores, corregí.
-- Usá similarDays (qué hizo el TC otros días con noticias parecidas) para calibrar.
-- confidence > 70 solo si noticias, precio y días similares apuntan en la misma dirección.
-- En drivers citá los titulares concretos que sostienen el sesgo.
+- Base: morningNews + newsCalibration + similarDays. Con rueda abierta, también precio vs today.cierreAnterior.
+- newsCalibration es empírico: si "alcista" de la mañana suele terminar lateral/bajista, NO repitas alcista con confianza alta.
+- Umbrales (salvo evidencia concreta en contra que cites en drivers):
+  · newsScore <= -0.2 → bajista
+  · newsScore >= 0.45 → alcista
+  · entre -0.2 y 0.45 → lateral (el default correcto en estos mercados)
+- Deuda/reservas/"incertidumbre" estructurales NO alcanzan. Notas "qué es el riesgo país" tampoco.
+- Superávit comercial / récord exportador pesan bajista aunque haya ruido de riesgo país.
+- No hay sesgo alcista por defecto. Si estimateTrack muestra varios errores alcistas seguidos, corregí a lateral o bajista.
+- confidence > 65 solo si noticias + días similares apuntan igual; > 80 casi nunca.
+- En drivers citá titulares concretos (con medio) que sostienen el sesgo.
 ${ARGENTINA_FX_CONTEXT}`,
     },
     {

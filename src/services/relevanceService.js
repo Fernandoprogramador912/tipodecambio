@@ -74,12 +74,14 @@ function getImpactLabel(score) {
  * @param {number} opts.limit - Cantidad máxima a devolver (default 20)
  * @returns {Array}
  */
-const PRIORITY_SOURCE_BOOST = 3;
+/** Boost chico: antes (+3) enterraba Ámbito/La Nación detrás de Infobae/iPro. */
+const PRIORITY_SOURCE_BOOST = 1;
+const MAX_PER_SOURCE = 7;
 
 function scoreItem(item) {
   let score = scoreText(item.title) + scoreText(item.summary);
   const src = item.source || '';
-  if (/iprofesional/i.test(src) || /infobae/i.test(src) || src === 'El Cronista') {
+  if (/iprofesional|infobae|cronista|ámbito|ambito|clarín|clarin|perfil|nación|nacion|economista/i.test(src)) {
     score += PRIORITY_SOURCE_BOOST;
   }
   return { ...item, score, impact: getImpactLabel(score) };
@@ -89,17 +91,40 @@ function scoreItems(items) {
   return items.map(scoreItem);
 }
 
-function filterAndRank(items, { minScore = 1, limit = 20 } = {}) {
+/** Evita que 2 medios se coman el ranking: tope por fuente y luego relleno. */
+function diversifyBySource(sorted, limit, maxPerSource = MAX_PER_SOURCE) {
+  const out = [];
+  const counts = {};
+  const rest = [];
+  for (const item of sorted) {
+    const src = item.source || '—';
+    const n = counts[src] || 0;
+    if (n < maxPerSource) {
+      out.push(item);
+      counts[src] = n + 1;
+    } else {
+      rest.push(item);
+    }
+    if (out.length >= limit) return out.slice(0, limit);
+  }
+  for (const item of rest) {
+    if (out.length >= limit) break;
+    out.push(item);
+  }
+  return out;
+}
+
+function filterAndRank(items, { minScore = 1, limit = 20, maxPerSource = MAX_PER_SOURCE } = {}) {
   const scored = items.some(i => i.score != null) ? items : scoreItems(items);
 
-  return scored
+  const sorted = scored
     .filter(i => i.score >= minScore && !isBlueDollarNews(i))
     .sort((a, b) => {
-      // Primero por impacto, luego por fecha
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.pubDate) - new Date(a.pubDate);
-    })
-    .slice(0, limit);
+    });
+
+  return diversifyBySource(sorted, limit, maxPerSource);
 }
 
 module.exports = { filterAndRank, scoreItems, scoreItem };

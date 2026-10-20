@@ -39,10 +39,15 @@ function stripHtml(html) {
 const RSS_FEEDS = [
   { url: 'https://eleconomista.com.ar/economia/feed/', source: 'El Economista' },
   { url: 'https://eleconomista.com.ar/finanzas/feed/', source: 'El Economista Finanzas' },
-  { url: 'https://www.ambito.com/rss/pages/economia.xml', source: 'Ámbito Financiero' },
-  { url: 'https://www.ambito.com/rss/pages/finanzas.xml', source: 'Ámbito Finanzas' },
-  { url: 'https://www.lanacion.com.ar/economia/feed/', source: 'La Nación Economía' },
+  // economia.xml de Ámbito suele timeout; el home responde y se filtra por tema abajo
+  { url: 'https://www.ambito.com/rss/pages/home.xml', source: 'Ámbito Financiero', economyOnly: true },
+  { url: 'https://www.lanacion.com.ar/arc/outboundfeeds/rss/category/economia/?outputType=xml', source: 'La Nación Economía' },
+  { url: 'https://www.clarin.com/rss/economia/', source: 'Clarín Economía' },
+  { url: 'https://www.perfil.com/feed/economia', source: 'Perfil Economía' },
+  { url: 'https://www.cronista.com/arc/outboundfeeds/rss/category/economia-politica/?outputType=xml', source: 'El Cronista Economía' },
 ];
+
+const ECONOMY_TITLE_RE = /d[oó]lar|bcra|fmi|bonos?|riesgo\s*pa[ií]s|reservas|inflaci[oó]n|export|import|super[aá]vit|d[eé]ficit|caputo|milei|merval|mep|ccl|mayorista|deuda|desembolso|tipo de cambio|cepo|crawling|liquidaci[oó]n|agro|soja|mercado|econom[ií]a|finanzas/i;
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const NEWS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -70,7 +75,7 @@ let cache = {
 async function fetchFeed(feed) {
   try {
     const parsed = await parser.parseURL(feed.url);
-    return parsed.items.map(item => ({
+    let items = parsed.items.map(item => ({
       title: item.title || '',
       summary: stripHtml(item.contentSnippet || item.description || item.summary || ''),
       link: item.link || item.guid || '',
@@ -78,7 +83,12 @@ async function fetchFeed(feed) {
       source: feed.source,
       rssImage: normalizeRssImageUrl(extractRssImage(item)),
     }));
-  } catch {
+    if (feed.economyOnly) {
+      items = items.filter(i => ECONOMY_TITLE_RE.test(`${i.title} ${i.summary} ${i.link}`));
+    }
+    return items;
+  } catch (err) {
+    console.warn('[news-rss]', feed.source, err.message);
     return [];
   }
 }
@@ -120,4 +130,28 @@ async function getNews() {
   }
 }
 
-module.exports = { getNews };
+/**
+ * Medios que suelen pedir suscripción / paywall al abrir la nota.
+ * Se ocultan en el dashboard; el análisis interno (estimación / memoria) sigue usándolos.
+ */
+const DASHBOARD_HIDDEN_SOURCES = [
+  /clar[ií]n/i,
+  /iprofesional/i,
+  /la naci[oó]n/i,
+  /cronista/i,
+];
+
+function isDashboardHiddenSource(source = '') {
+  return DASHBOARD_HIDDEN_SOURCES.some(re => re.test(source));
+}
+
+/** Noticias para mostrar en la UI (sin medios con paywall). */
+async function getNewsForDashboard() {
+  const news = await getNews();
+  return {
+    ...news,
+    items: (news.items || []).filter(i => !isDashboardHiddenSource(i.source)),
+  };
+}
+
+module.exports = { getNews, getNewsForDashboard, isDashboardHiddenSource };
