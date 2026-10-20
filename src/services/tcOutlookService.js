@@ -25,9 +25,12 @@ function todayART() {
   return art.toISOString().slice(0, 10);
 }
 
-/** Solo guardamos / listamos análisis desde esta fecha (inclusive). */
+/**
+ * Solo guardamos / listamos análisis desde esta fecha (inclusive).
+ * Default fijo (no “hoy”): si en Render falta la env, el historial no se reduce a un solo día.
+ */
 function outlookStartDate() {
-  return process.env.TC_OUTLOOK_START_DATE || todayART();
+  return process.env.TC_OUTLOOK_START_DATE || '2026-08-21';
 }
 
 function isOnOrAfterStart(dateStr) {
